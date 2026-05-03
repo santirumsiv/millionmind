@@ -1,0 +1,26 @@
+{
+  "name": "@millionmind/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared types, constants, tier logic for Million Mind clients and edge functions",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tiers": "./src/tiers.ts",
+    "./algorithms": "./src/algorithms.ts",
+    "./theme": "./src/theme.ts",
+    "./types": "./src/types.ts",
+    "./schemas": "./src/schemas.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"shared: no lint configured\""
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
