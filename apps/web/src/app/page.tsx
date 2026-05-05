@@ -38,18 +38,28 @@ export default function LandingPage() {
 
         <div className="mt-14 flex flex-wrap gap-4">
           <Link
-            href="/sign-up"
+            href="/demo"
             className="inline-block bg-gold text-bg font-mono text-[11px] uppercase tracking-[0.2em] px-7 py-4 hover:bg-gold-bright transition-colors"
           >
-            Get started
+            Try the live demo
+          </Link>
+          <Link
+            href="/sign-up"
+            className="inline-block border border-gold-deep text-gold font-mono text-[11px] uppercase tracking-[0.2em] px-7 py-4 hover:border-gold transition-colors"
+          >
+            Create account
           </Link>
           <Link
             href="/sign-in"
-            className="inline-block border border-gold-deep text-gold font-mono text-[11px] uppercase tracking-[0.2em] px-7 py-4 hover:border-gold transition-colors"
+            className="inline-block border border-rule text-ink-soft font-mono text-[11px] uppercase tracking-[0.2em] px-7 py-4 hover:text-gold hover:border-gold-deep transition-colors"
           >
             Sign in
           </Link>
         </div>
+
+        <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
+          Demo: 1,768 drawings, all 7 algorithms, no sign-in.
+        </p>
       </section>
 
       {/* Tiers */}

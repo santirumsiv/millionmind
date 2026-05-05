@@ -17,6 +17,8 @@
     "mobile": "turbo run dev --filter=@millionmind/mobile",
     "db:reset": "supabase db reset",
     "db:seed": "psql \"$DATABASE_URL\" -f supabase/seed/dev_seed.sql",
+    "db:seed:full": "psql \"$DATABASE_URL\" -f supabase/seed/full_history.sql",
+    "db:import-csv": "node supabase/scripts/import_csv.mjs",
     "db:load-history": "python supabase/scripts/load_powerball_history.py",
     "db:refresh": "python supabase/scripts/refresh_recent.py"
   },

@@ -1,12 +1,14 @@
-// Server-side algorithm implementations. Run inside Supabase Edge Functions
-// (Deno runtime). Pure functions — receive cached stats / drawings as input,
-// return a candidate combination. No DB calls inside; the caller fetches
-// inputs and writes results.
+// Million Mind — Algorithm engine (portable implementation)
+//
+// Pure functions for all 7 generation methods. No DB calls, no auth, no
+// platform deps. Used by:
+//   - supabase/functions/_shared/algorithms.ts (Deno) — server-side
+//   - apps/web/src/app/demo/* (Node/browser) — client-side demo
 //
 // IMPORTANT: None of these algorithms predict winners. They produce
 // statistically-flavored *generations* of valid Powerball combinations.
 
-import type { AlgorithmId } from "./tiers.ts";
+import type { AlgorithmId } from "./algorithms";
 
 export interface NumberStat {
   number: number;
@@ -14,6 +16,7 @@ export interface NumberStat {
   frequency: number;
   last_drawn: string | null;
   gap_days: number | null;
+  updated_at: string;
 }
 
 export interface DrawingRow {
@@ -31,7 +34,6 @@ export interface Combination {
   powerball: number;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────
 const WHITE_RANGE = Array.from({ length: 69 }, (_, i) => i + 1);
 const PB_RANGE = Array.from({ length: 26 }, (_, i) => i + 1);
 
@@ -61,7 +63,6 @@ function weightedSample(
   for (let i = 0; i < k; i++) {
     const total = items.reduce((s, it) => s + it.weight, 0);
     if (total <= 0) {
-      // All remaining weights are zero — fall back to uniform.
       const idx = uniformInt(items.length);
       out.push(items[idx]!.value);
       items.splice(idx, 1);
@@ -87,7 +88,6 @@ function sortAscFive(nums: number[]): [number, number, number, number, number] {
   return [sorted[0]!, sorted[1]!, sorted[2]!, sorted[3]!, sorted[4]!];
 }
 
-// ─── 1. RANDOM ───────────────────────────────────────────────────────
 function randomCombo(): Combination {
   const whites = shuffle(WHITE_RANGE).slice(0, 5);
   return {
@@ -96,7 +96,6 @@ function randomCombo(): Combination {
   };
 }
 
-// ─── 2. HOT ──────────────────────────────────────────────────────────
 function hotCombo(stats: NumberStat[]): Combination {
   const whites = stats.filter((s) => s.ball_type === "white");
   const pbs = stats.filter((s) => s.ball_type === "powerball");
@@ -114,7 +113,6 @@ function hotCombo(stats: NumberStat[]): Combination {
   return { white_balls: sortAscFive(whiteNums), powerball: pb! };
 }
 
-// ─── 3. COLD ─────────────────────────────────────────────────────────
 function coldCombo(stats: NumberStat[]): Combination {
   const whites = stats.filter((s) => s.ball_type === "white");
   const pbs = stats.filter((s) => s.ball_type === "powerball");
@@ -134,7 +132,6 @@ function coldCombo(stats: NumberStat[]): Combination {
   return { white_balls: sortAscFive(whiteNums), powerball: pb! };
 }
 
-// ─── 4. GAP ──────────────────────────────────────────────────────────
 function gapCombo(stats: NumberStat[]): Combination {
   const whites = stats.filter((s) => s.ball_type === "white");
   const pbs = stats.filter((s) => s.ball_type === "powerball");
@@ -153,8 +150,6 @@ function gapCombo(stats: NumberStat[]): Combination {
   return { white_balls: sortAscFive(whiteNums), powerball: pb! };
 }
 
-// ─── 5. PATTERN ──────────────────────────────────────────────────────
-// Sum 100–220, 2–3 odd, 2–3 in low half (1–34). Up to 1000 retries.
 function patternCombo(): Combination {
   for (let attempt = 0; attempt < 1000; attempt++) {
     const c = randomCombo();
@@ -168,14 +163,9 @@ function patternCombo(): Combination {
   return randomCombo();
 }
 
-// ─── 6. MARKOV ───────────────────────────────────────────────────────
-// Simple bigram transition: P(n appears in current draw | m appeared in prior)
-// Build counts from drawings ordered by date asc; sample 5 whites weighted by
-// the row of the matrix corresponding to the most recent drawing's whites.
 function markovCombo(drawings: DrawingRow[]): Combination {
   if (drawings.length < 10) return randomCombo();
   const sorted = drawings.slice().sort((a, b) => a.draw_date.localeCompare(b.draw_date));
-  // 70x70 (use 1..69) transition counts for whites.
   const trans: number[][] = Array.from({ length: 70 }, () => new Array(70).fill(0));
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1]!;
@@ -196,7 +186,6 @@ function markovCombo(drawings: DrawingRow[]): Combination {
     return Math.max(1, w);
   });
   const whiteNums = weightedSample(WHITE_RANGE, weights, 5);
-  // Powerball: marginal frequency from drawings (independent of whites).
   const pbCounts = new Array(27).fill(0) as number[];
   for (const d of sorted) pbCounts[d.powerball]! += 1;
   const [pb] = weightedSample(
@@ -207,22 +196,16 @@ function markovCombo(drawings: DrawingRow[]): Combination {
   return { white_balls: sortAscFive(whiteNums), powerball: pb! };
 }
 
-// ─── 7. MONTE CARLO ──────────────────────────────────────────────────
 function scoreCombo(c: Combination): number {
   const whites = c.white_balls;
   const sum = whites.reduce((s, n) => s + n, 0);
   let score = 0;
-  // Sum within a balanced range
   if (sum >= 100 && sum <= 220) score += 1.0;
-  // Odd/even balance (2–3 odd)
   const odd = whites.filter((n) => n % 2 === 1).length;
   if (odd >= 2 && odd <= 3) score += 0.8;
-  // High/low balance (2–3 in low half)
   const low = whites.filter((n) => n <= 34).length;
   if (low >= 2 && low <= 3) score += 0.8;
-  // Spread > 30
   if (Math.max(...whites) - Math.min(...whites) > 30) score += 0.5;
-  // No 3 consecutive numbers
   let consecutive = 1;
   let maxConsecutive = 1;
   for (let i = 1; i < whites.length; i++) {
@@ -252,6 +235,8 @@ function monteCarloCombo(): Combination {
 }
 
 // ─── 8. MIXED ────────────────────────────────────────────────────────
+// 2 picks from top hot, 2 from top overdue, 1 frequency-weighted random.
+// Powerball is frequency-weighted.
 function mixedCombo(stats: NumberStat[]): Combination {
   const whites = stats.filter((s) => s.ball_type === "white");
   const pbs = stats.filter((s) => s.ball_type === "powerball");
@@ -259,18 +244,28 @@ function mixedCombo(stats: NumberStat[]): Combination {
 
   const byFreq = whites.slice().sort((a, b) => b.frequency - a.frequency);
   const hotPool = byFreq.slice(0, 15);
-  const byGap = whites.slice().sort((a, b) => (b.gap_days ?? 0) - (a.gap_days ?? 0));
+  const byGap = whites
+    .slice()
+    .sort((a, b) => (b.gap_days ?? 0) - (a.gap_days ?? 0));
   const overduePool = byGap.slice(0, 15);
 
   const picked = new Set<number>();
-  for (const n of shuffle(hotPool.map((s) => s.number))) {
+
+  // 2 from hot pool
+  const hotShuffled = shuffle(hotPool.map((s) => s.number));
+  for (const n of hotShuffled) {
     if (picked.size >= 2) break;
     picked.add(n);
   }
-  for (const n of shuffle(overduePool.map((s) => s.number))) {
+
+  // 2 from overdue pool (skipping ones already picked)
+  const overdueShuffled = shuffle(overduePool.map((s) => s.number));
+  for (const n of overdueShuffled) {
     if (picked.size >= 4) break;
     if (!picked.has(n)) picked.add(n);
   }
+
+  // Last 1 frequency-weighted from remaining whites
   const remaining = whites.filter((s) => !picked.has(s.number));
   if (remaining.length > 0) {
     const [last] = weightedSample(
@@ -280,21 +275,34 @@ function mixedCombo(stats: NumberStat[]): Combination {
     );
     picked.add(last!);
   }
-  while (picked.size < 5) picked.add(uniformInt(69) + 1);
+
+  // Pad with uniform random if anything went sideways
+  while (picked.size < 5) {
+    picked.add(uniformInt(69) + 1);
+  }
+
   const [pb] = weightedSample(
     pbs.map((s) => s.number),
     pbs.map((s) => Math.max(1, s.frequency)),
     1,
   );
-  return { white_balls: sortAscFive(Array.from(picked).slice(0, 5)), powerball: pb! };
+
+  return {
+    white_balls: sortAscFive(Array.from(picked).slice(0, 5)),
+    powerball: pb!,
+  };
 }
 
 // ─── 9. ANTI-SYNDICATION ─────────────────────────────────────────────
+// Doesn't change winning odds. Reduces *shared-payout* probability by
+// avoiding patterns common in player picks: birthday clusters (≤31)
+// and 3+ consecutive numbers.
 function antiSyndicationCombo(): Combination {
   for (let attempt = 0; attempt < 1000; attempt++) {
     const c = randomCombo();
     const lowCount = c.white_balls.filter((n) => n <= 31).length;
-    if (lowCount > 2) continue;
+    if (lowCount > 2) continue; // Avoid birthday clusters
+
     let maxConsecutive = 1;
     let cur = 1;
     for (let i = 1; i < c.white_balls.length; i++) {
@@ -305,15 +313,17 @@ function antiSyndicationCombo(): Combination {
         cur = 1;
       }
     }
-    if (maxConsecutive >= 3) continue;
+    if (maxConsecutive >= 3) continue; // Avoid 1-2-3 type sequences
+
+    // Avoid all-multiples-of-N (5, 10) — also a common ticket marking
     const multiplesOf5 = c.white_balls.filter((n) => n % 5 === 0).length;
     if (multiplesOf5 >= 4) continue;
+
     return c;
   }
   return randomCombo();
 }
 
-// ─── Dispatcher ──────────────────────────────────────────────────────
 export interface AlgorithmInputs {
   stats?: NumberStat[];
   drawings?: DrawingRow[];
@@ -345,10 +355,113 @@ export function generate(
   }
 }
 
+/**
+ * Compute number_stats from a list of drawings. Mirrors the SQL function
+ * `refresh_number_stats()` so client-side and server-side stay consistent.
+ */
+export function computeStats(drawings: DrawingRow[]): NumberStat[] {
+  if (drawings.length === 0) return [];
+
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
+
+  const whiteFreq = new Map<number, number>();
+  const whiteLast = new Map<number, string>();
+  const pbFreq = new Map<number, number>();
+  const pbLast = new Map<number, string>();
+
+  for (const d of drawings) {
+    for (const n of [d.n1, d.n2, d.n3, d.n4, d.n5]) {
+      whiteFreq.set(n, (whiteFreq.get(n) ?? 0) + 1);
+      const prev = whiteLast.get(n);
+      if (!prev || d.draw_date > prev) whiteLast.set(n, d.draw_date);
+    }
+    pbFreq.set(d.powerball, (pbFreq.get(d.powerball) ?? 0) + 1);
+    const prev = pbLast.get(d.powerball);
+    if (!prev || d.draw_date > prev) pbLast.set(d.powerball, d.draw_date);
+  }
+
+  const updatedAt = new Date().toISOString();
+  const stats: NumberStat[] = [];
+  for (let n = 1; n <= 69; n++) {
+    const last = whiteLast.get(n) ?? null;
+    stats.push({
+      number: n,
+      ball_type: "white",
+      frequency: whiteFreq.get(n) ?? 0,
+      last_drawn: last,
+      gap_days: last ? daysBetween(last, todayIso) : null,
+      updated_at: updatedAt,
+    });
+  }
+  for (let n = 1; n <= 26; n++) {
+    const last = pbLast.get(n) ?? null;
+    stats.push({
+      number: n,
+      ball_type: "powerball",
+      frequency: pbFreq.get(n) ?? 0,
+      last_drawn: last,
+      gap_days: last ? daysBetween(last, todayIso) : null,
+      updated_at: updatedAt,
+    });
+  }
+  return stats;
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  const from = Date.parse(fromIso);
+  const to = Date.parse(toIso);
+  return Math.floor((to - from) / 86_400_000);
+}
+
 export function needsStats(algorithm: AlgorithmId): boolean {
   return ["hot", "cold", "gap", "mixed"].includes(algorithm);
 }
 
 export function needsDrawings(algorithm: AlgorithmId): boolean {
   return algorithm === "markov";
+}
+
+/**
+ * Compute the most frequently-paired numbers from a set of drawings.
+ * Returns top-N pairs by co-occurrence count. Useful for the "Pairs" view.
+ */
+export function computeTopPairs(
+  drawings: DrawingRow[],
+  topN = 20,
+): Array<{ a: number; b: number; count: number }> {
+  const pairs = new Map<string, number>();
+  for (const d of drawings) {
+    const whites = [d.n1, d.n2, d.n3, d.n4, d.n5].sort((x, y) => x - y);
+    for (let i = 0; i < whites.length; i++) {
+      for (let j = i + 1; j < whites.length; j++) {
+        const key = `${whites[i]}-${whites[j]}`;
+        pairs.set(key, (pairs.get(key) ?? 0) + 1);
+      }
+    }
+  }
+  return Array.from(pairs.entries())
+    .map(([key, count]) => {
+      const [a, b] = key.split("-").map(Number);
+      return { a: a!, b: b!, count };
+    })
+    .sort((x, y) => y.count - x.count)
+    .slice(0, topN);
+}
+
+/**
+ * Compute "Sweet Spot" — the central sum range that contains the bulk of
+ * historical drawings. Returns [p25, p75] of the sum distribution.
+ */
+export function computeSweetSpot(drawings: DrawingRow[]): {
+  low: number;
+  high: number;
+  median: number;
+} {
+  if (drawings.length === 0) return { low: 100, high: 220, median: 175 };
+  const sums = drawings
+    .map((d) => d.n1 + d.n2 + d.n3 + d.n4 + d.n5)
+    .sort((a, b) => a - b);
+  const pct = (p: number) => sums[Math.floor(sums.length * p)] ?? 0;
+  return { low: pct(0.25), high: pct(0.75), median: pct(0.5) };
 }

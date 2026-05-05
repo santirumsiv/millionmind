@@ -6,6 +6,8 @@ export const ALGORITHM_IDS = [
   "pattern",
   "markov",
   "monte_carlo",
+  "mixed",
+  "anti_syndication",
 ] as const;
 
 export type AlgorithmId = (typeof ALGORITHM_IDS)[number];
@@ -66,6 +68,20 @@ export const ALGORITHMS: Record<AlgorithmId, AlgorithmDefinition> = {
     shortDescription: "10,000-candidate scoring across balance criteria.",
     longDescription:
       "Generates 10,000 candidate combinations and scores each on multiple balance criteria — sum range (1.0), odd/even balance (0.8), high/low balance (0.8), spread > 30 (0.5), no consecutive triples (0.3). Returns the highest-scoring candidate.",
+  },
+  mixed: {
+    id: "mixed",
+    name: "Mixed Ensemble",
+    shortDescription: "Combines hot, overdue, and frequency-weighted selection.",
+    longDescription:
+      "Picks two numbers from the historically most-frequent pool, two from the most-overdue pool, and the remaining slot from a frequency-weighted random sample. Powerball is frequency-weighted. A blended view that doesn't lean entirely on any single signal.",
+  },
+  anti_syndication: {
+    id: "anti_syndication",
+    name: "Anti-Syndication",
+    shortDescription: "Avoids birthday-cluster and sequential picks.",
+    longDescription:
+      "Generates combinations that avoid patterns popular among other players: clusters in 1–31 (birthday picks) and 3+ consecutive numbers. The mathematical odds are unchanged, but if your numbers do hit, you're less likely to share the prize with someone who used the same pattern.",
   },
 };
 

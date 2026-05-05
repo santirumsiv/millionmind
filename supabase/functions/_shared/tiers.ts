@@ -10,13 +10,25 @@ export type AlgorithmId =
   | "gap"
   | "pattern"
   | "markov"
-  | "monte_carlo";
+  | "monte_carlo"
+  | "mixed"
+  | "anti_syndication";
 
 export const TIER_ALGORITHMS: Record<TierId, readonly AlgorithmId[]> = {
   free: ["random"],
   starter: ["random", "hot", "cold"],
-  pro: ["random", "hot", "cold", "gap", "pattern"],
-  elite: ["random", "hot", "cold", "gap", "pattern", "markov", "monte_carlo"],
+  pro: ["random", "hot", "cold", "gap", "pattern", "mixed"],
+  elite: [
+    "random",
+    "hot",
+    "cold",
+    "gap",
+    "pattern",
+    "markov",
+    "monte_carlo",
+    "mixed",
+    "anti_syndication",
+  ],
 };
 
 export const TIER_WEEKLY_CAP: Record<TierId, number | null> = {
@@ -36,6 +48,6 @@ export function tierIncludesAlgorithm(
 export function minimumTierFor(algorithm: AlgorithmId): TierId {
   if (algorithm === "random") return "free";
   if (algorithm === "hot" || algorithm === "cold") return "starter";
-  if (algorithm === "gap" || algorithm === "pattern") return "pro";
+  if (algorithm === "gap" || algorithm === "pattern" || algorithm === "mixed") return "pro";
   return "elite";
 }
