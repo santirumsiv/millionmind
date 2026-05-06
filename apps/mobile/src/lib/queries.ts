@@ -90,7 +90,18 @@ export function useMyCombinations(limit = 30) {
 }
 
 export function tierLabel(tier: TierId): string {
-  return { free: "Explorer", starter: "Analyst", pro: "Strategist", elite: "Data Scientist" }[tier];
+  return tier === "pro" ? "Pro" : "Explorer";
+}
+
+export const FREE_LIMITS = {
+  drawingsHistory: 30,
+  myGenerationsDays: 7,
+} as const;
+
+export function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
 }
 
 function isoMondayUtc(): string {

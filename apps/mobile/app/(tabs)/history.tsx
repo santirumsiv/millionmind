@@ -1,13 +1,24 @@
 import { useState, useCallback } from "react";
-import { View, Text, ScrollView, RefreshControl, Pressable } from "react-native";
+import { View, Text, ScrollView, RefreshControl, Pressable, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRecentDrawings } from "@/lib/queries";
+import {
+  GAMES,
+  GAME_IDS,
+  drawingsToCsv,
+  todayStampedFilename,
+} from "@millionmind/shared";
+import { FREE_LIMITS, useProfile, useRecentDrawings } from "@/lib/queries";
 import { PowerballRow } from "@/components/PowerballRow";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
+import { shareCsv } from "@/lib/share-csv";
 import { DisclaimerFooter } from "@/components/DisclaimerFooter";
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
-  const [limit, setLimit] = useState(50);
+  const { data: profile } = useProfile();
+  const isPro = profile?.tier === "pro";
+
+  const [limit, setLimit] = useState(isPro ? 50 : FREE_LIMITS.drawingsHistory);
   const { data: drawings, isLoading, refetch } = useRecentDrawings(limit);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -16,6 +27,13 @@ export default function HistoryScreen() {
     await refetch();
     setRefreshing(false);
   }, [refetch]);
+
+  async function onExport() {
+    if (!drawings || !isPro) return;
+    await shareCsv(drawingsToCsv(drawings), todayStampedFilename("powerball_drawings"));
+  }
+
+  const atFreeCap = !isPro && drawings && drawings.length >= FREE_LIMITS.drawingsHistory;
 
   return (
     <ScrollView
@@ -30,9 +48,35 @@ export default function HistoryScreen() {
         <Text className="font-display text-[40px] leading-[1.05] text-ink mb-3">
           Past drawings.
         </Text>
-        <Text className="text-ink-soft text-[14px] leading-relaxed mb-8">
-          Every Powerball drawing since 2010, from the New York State Open Data API.
+        <Text className="text-ink-soft text-[14px] leading-relaxed mb-4">
+          {isPro
+            ? "Every Powerball and Mega Millions drawing back to 2010, refreshed automatically every 4 hours."
+            : `Free tier shows the last ${FREE_LIMITS.drawingsHistory} drawings. Pro unlocks the full archive.`}
         </Text>
+
+        <View className="gap-2 mb-6">
+          {GAME_IDS.map((id) => (
+            <Pressable
+              key={id}
+              onPress={() => Linking.openURL(GAMES[id].officialResultsUrl)}
+            >
+              <Text className="font-mono text-[10px] uppercase tracking-[1.5px] text-ink-faint">
+                Latest {GAMES[id].name} on official site ↗
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {isPro && drawings && drawings.length > 0 ? (
+          <Pressable
+            onPress={onExport}
+            className="border border-gold-deep py-3 mb-6 active:border-gold"
+          >
+            <Text className="text-center font-mono text-[10px] uppercase tracking-[2px] text-gold">
+              ↓ Export CSV ({drawings.length})
+            </Text>
+          </Pressable>
+        ) : null}
 
         {isLoading && !drawings ? (
           <Text className="text-ink-faint text-sm">Loading drawings…</Text>
@@ -62,7 +106,14 @@ export default function HistoryScreen() {
           </View>
         )}
 
-        {drawings && drawings.length === limit ? (
+        {atFreeCap ? (
+          <View className="mt-6">
+            <UpgradePrompt
+              feature="See every drawing back to 2010"
+              detail={`You've reached the Free-tier limit of ${FREE_LIMITS.drawingsHistory} most recent drawings.`}
+            />
+          </View>
+        ) : drawings && drawings.length === limit ? (
           <Pressable
             onPress={() => setLimit((l) => l + 50)}
             className="border border-gold-deep py-3 mt-6 active:border-gold"

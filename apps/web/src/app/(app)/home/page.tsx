@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { TIERS } from "@millionmind/shared";
+import { GAMES, TIERS } from "@millionmind/shared";
 import {
+  FREE_LIMITS,
+  daysAgoIso,
   useMyCombinations,
   useProfile,
   useRecentDrawings,
@@ -14,13 +16,20 @@ import { PowerballRow } from "@/components/PowerballRow";
 export default function HomePage() {
   const { data: profile } = useProfile();
   const { data: usage } = useUsageThisWeek();
-  const { data: combos } = useMyCombinations(3);
+  const { data: combos } = useMyCombinations(20);
   const { data: drawings } = useRecentDrawings(1);
   const lastDraw = drawings?.[0];
 
   const tier = profile?.tier ?? "free";
+  const isPro = tier === "pro";
   const cap = TIERS[tier].weeklyGenerationCap;
   const remaining = cap === "unlimited" ? "unlimited" : Math.max(0, cap - (usage?.count ?? 0));
+
+  // Free tier sees only the last 7 days of their generation history.
+  const visibleCombos = (combos ?? []).filter((c) =>
+    isPro ? true : c.created_at >= daysAgoIso(FREE_LIMITS.myGenerationsDays),
+  ).slice(0, 3);
+  const olderCombosCount = (combos ?? []).length - visibleCombos.length;
 
   const next = nextDrawingDate();
 
@@ -61,9 +70,19 @@ export default function HomePage() {
         </div>
 
         <div className="border border-rule bg-bg-elevated p-6">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold mb-4">
-            Last drawing
-          </p>
+          <div className="flex items-baseline justify-between mb-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
+              Last drawing
+            </p>
+            <a
+              href={GAMES.powerball.officialResultsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint hover:text-gold"
+            >
+              powerball.com ↗
+            </a>
+          </div>
           {lastDraw ? (
             <>
               <p className="font-mono text-[12px] text-ink-soft mb-3">
@@ -82,12 +101,20 @@ export default function HomePage() {
       </section>
 
       <section>
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold mb-4">
-          Recent generations
-        </p>
-        {combos && combos.length > 0 ? (
+        <div className="flex items-baseline justify-between mb-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
+            Recent generations
+          </p>
+          {!isPro ? (
+            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
+              Free · last {FREE_LIMITS.myGenerationsDays} days
+            </p>
+          ) : null}
+        </div>
+
+        {visibleCombos.length > 0 ? (
           <div className="space-y-3">
-            {combos.map((c) => (
+            {visibleCombos.map((c) => (
               <div
                 key={c.id}
                 className="border border-rule bg-bg-elevated p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
@@ -99,6 +126,21 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
+
+            {!isPro && olderCombosCount > 0 ? (
+              <div className="border border-gold-deep bg-bg-elevated/40 p-4 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-ink-soft text-[13px]">
+                  🔒 {olderCombosCount} older{" "}
+                  {olderCombosCount === 1 ? "generation" : "generations"} hidden — Pro keeps your full history.
+                </span>
+                <Link
+                  href="/account"
+                  className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold hover:text-gold-bright"
+                >
+                  Upgrade →
+                </Link>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="border border-rule bg-bg-elevated p-6">

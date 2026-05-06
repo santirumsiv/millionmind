@@ -27,20 +27,18 @@ interface RevenueCatEvent {
   };
 }
 
+// Single Pro entitlement covers both billing variants
+// (pro_monthly / pro_annual). RevenueCat reports the same `pro_access`
+// entitlement regardless of which product the user bought.
 const ENTITLEMENT_TO_TIER: Record<string, TierId> = {
-  starter_access: "starter",
   pro_access: "pro",
-  elite_access: "elite",
 };
 
 function pickHighestTier(entitlements: string[]): TierId {
   const tiers = entitlements
     .map((e) => ENTITLEMENT_TO_TIER[e])
     .filter((t): t is TierId => Boolean(t));
-  if (tiers.includes("elite")) return "elite";
-  if (tiers.includes("pro")) return "pro";
-  if (tiers.includes("starter")) return "starter";
-  return "free";
+  return tiers.includes("pro") ? "pro" : "free";
 }
 
 function jsonResponse(body: unknown, status = 200): Response {

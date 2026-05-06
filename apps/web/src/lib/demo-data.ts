@@ -1,15 +1,22 @@
 "use client";
 
-import type { DrawingRow } from "@millionmind/shared";
+import type { DrawingRow, GameId } from "@millionmind/shared";
+
+const CSV_BY_GAME: Record<GameId, string> = {
+  powerball: "/full_history.csv",
+  megamillions: "/mm_history.csv",
+};
 
 /**
- * Fetch and parse the static CSV in /public. Returns drawings sorted asc.
- * Used by the /demo route to run algorithms entirely client-side.
+ * Fetch and parse a static CSV in /public for the given game. Returns
+ * drawings sorted asc. Used by /demo to run algorithms entirely in the
+ * browser, no backend.
  */
-export async function fetchDemoDrawings(): Promise<DrawingRow[]> {
-  const res = await fetch("/full_history.csv");
+export async function fetchDemoDrawings(game: GameId = "powerball"): Promise<DrawingRow[]> {
+  const url = CSV_BY_GAME[game];
+  const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Failed to load /full_history.csv: ${res.status}`);
+    throw new Error(`Failed to load ${url}: ${res.status}`);
   }
   const text = await res.text();
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);

@@ -1,7 +1,12 @@
-// Mirror of packages/shared/src/tiers.ts — kept Deno-friendly so edge functions
-// have zero external deps. If you change one, change the other.
+// Mirror of packages/shared/src/tiers.ts — kept Deno-friendly so edge
+// functions have zero external deps. If you change one, change the other.
+//
+// Two tiers: free + pro. Pro has two billing variants (monthly $2.99
+// and annual $19.99) — both map to the `pro_access` entitlement and
+// grant identical access. The user's `tier` column is binary: 'free'
+// or 'pro'.
 
-export type TierId = "free" | "starter" | "pro" | "elite";
+export type TierId = "free" | "pro";
 
 export type AlgorithmId =
   | "random"
@@ -14,28 +19,27 @@ export type AlgorithmId =
   | "mixed"
   | "anti_syndication";
 
+export const ALL_ALGORITHMS: AlgorithmId[] = [
+  "random",
+  "hot",
+  "cold",
+  "gap",
+  "pattern",
+  "markov",
+  "monte_carlo",
+  "mixed",
+  "anti_syndication",
+];
+
 export const TIER_ALGORITHMS: Record<TierId, readonly AlgorithmId[]> = {
   free: ["random"],
-  starter: ["random", "hot", "cold"],
-  pro: ["random", "hot", "cold", "gap", "pattern", "mixed"],
-  elite: [
-    "random",
-    "hot",
-    "cold",
-    "gap",
-    "pattern",
-    "markov",
-    "monte_carlo",
-    "mixed",
-    "anti_syndication",
-  ],
+  pro: ALL_ALGORITHMS,
 };
 
+/** null = unlimited. Free users earn up to +5 via rewarded ads (handled separately). */
 export const TIER_WEEKLY_CAP: Record<TierId, number | null> = {
-  free: 3,
-  starter: 10,
-  pro: 50,
-  elite: null, // unlimited
+  free: 10,
+  pro: null,
 };
 
 export function tierIncludesAlgorithm(
@@ -46,8 +50,5 @@ export function tierIncludesAlgorithm(
 }
 
 export function minimumTierFor(algorithm: AlgorithmId): TierId {
-  if (algorithm === "random") return "free";
-  if (algorithm === "hot" || algorithm === "cold") return "starter";
-  if (algorithm === "gap" || algorithm === "pattern" || algorithm === "mixed") return "pro";
-  return "elite";
+  return algorithm === "random" ? "free" : "pro";
 }

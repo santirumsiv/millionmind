@@ -76,8 +76,7 @@ export async function restorePurchases(): Promise<CustomerInfo | null> {
 
 export function highestTierFromCustomerInfo(info: CustomerInfo): TierId {
   const active = info.entitlements.active ?? {};
-  if (active["elite_access"]) return "elite";
+  // pro_access covers both Pro billing variants (monthly, annual).
   if (active["pro_access"]) return "pro";
-  if (active["starter_access"]) return "starter";
   return "free";
 }

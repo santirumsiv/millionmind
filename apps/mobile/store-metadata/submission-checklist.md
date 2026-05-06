@@ -30,9 +30,12 @@ Walk through this with your attorney (per legal framework §11). Don't ship unti
 - [ ] iOS API key set in EAS production env
 - [ ] Android API key set in EAS production env
 - [ ] Webhook URL configured in RC dashboard, pointing at `revenuecat-webhook` Edge Function
-- [ ] All three products created in App Store Connect (`millionmind_*_monthly`)
-- [ ] All three products created in Google Play Console
-- [ ] Products mapped to entitlements (`starter_access` / `pro_access` / `elite_access`) in RC
+- [ ] **Two Pro billing variants** created in App Store Connect:
+  - [ ] `millionmind_pro_monthly` — auto-renewing subscription, $2.99
+  - [ ] `millionmind_pro_annual` — auto-renewing subscription, $19.99
+- [ ] Same two product IDs created in Google Play Console
+- [ ] Both products map to the **single** `pro_access` entitlement in RevenueCat (one-tier model)
+- [ ] Webhook records `pro_billing_variant` (`'monthly'` or `'annual'`) on the `profiles` row for analytics
 
 ## Mobile build
 

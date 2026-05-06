@@ -7,6 +7,7 @@ import {
   loginRevenueCat,
   logoutRevenueCat,
 } from "@/lib/revenuecat";
+import { initAds } from "@/lib/ads";
 
 interface AuthState {
   session: Session | null;
@@ -31,6 +32,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true });
 
     initRevenueCat();
+    void initAds(); // best-effort; not awaited
 
     const { data } = await supabase.auth.getSession();
     set({ session: data.session, user: data.session?.user ?? null });

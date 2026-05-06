@@ -25,13 +25,11 @@ FEATURES
 - Personal pick history
 - Calendar of every drawing since 2010
 
-TIERS
-- Explorer (Free): 3 random combinations weekly
-- Analyst ($7.99/mo): 10 combinations, hot/cold dashboard, 1 year of history
-- Strategist ($19.99/mo): 50 combinations, gap & pattern generators, full history, custom filters
-- Data Scientist ($39.99/mo): Unlimited, Markov + Monte Carlo, full visualization suite
+PLANS
+- Free (Explorer): 10 random combinations weekly across both games, basic frequency heatmap, last 30 drawings
+- Pro: $2.99/month or $19.99/year (save 44%) — All 9 algorithms (Hot, Cold, Gap, Pattern-Balanced, Markov Chain, Monte Carlo, Mixed, Anti-Syndication), unlimited generations, full historical database, pairs & trends, CSV export, no ads.
 
-Higher tiers unlock more sophisticated analytical features — they do not increase the user's chances of winning any lottery drawing.
+Pro unlocks more sophisticated analytical features — they do not increase the user's chances of winning any lottery drawing.
 
 Users must be 18 years of age or older to play Powerball. Please play responsibly. If you or someone you know has a gambling problem, call 1-800-GAMBLER or visit ncpgambling.org.
 
@@ -65,8 +63,8 @@ Security practices:
 - App or game: **App**
 - Category: **Entertainment**
 - Target age: **Mature 17+** or older as appropriate for the region.
-- Contains ads: **No**
-- In-app purchases: **Yes** — $0.99–$39.99
+- Contains ads: **Yes** (Free tier — banner + rewarded video; Pro tier removes ads)
+- In-app purchases: **Yes** — $2.99/mo or $19.99/yr
 
 ## Permissions
 

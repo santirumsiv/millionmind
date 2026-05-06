@@ -1,0 +1,102 @@
+-- ─────────────────────────────────────────────────────────────────────
+-- Million Mind — Schedule auto-refresh + reminder Edge Functions via
+-- pg_cron + pg_net.
+-- ─────────────────────────────────────────────────────────────────────
+-- This migration documents the cron setup but does NOT schedule the
+-- jobs automatically — Supabase requires the project's actual function
+-- URL and the secrets to be in place first.
+--
+-- Run the body of each `cron.schedule(...)` call manually in the SQL
+-- editor AFTER:
+--   1. The functions are deployed:
+--        supabase functions deploy refresh-drawings
+--        supabase functions deploy send-drawing-reminders
+--        supabase functions deploy refresh-stats
+--   2. The secrets are set:
+--        supabase secrets set REFRESH_DRAWINGS_SECRET=$(openssl rand -hex 32)
+--        supabase secrets set REMINDER_FUNCTION_SECRET=$(openssl rand -hex 32)
+--        supabase secrets set REFRESH_STATS_SECRET=$(openssl rand -hex 32)
+--   3. You replace YOUR_PROJECT_REF and the bearer values below with
+--      the actual values for your project.
+--
+-- pg_cron + pg_net are provided by Supabase. You may need to enable them
+-- once: https://supabase.com/docs/guides/database/extensions/pg_cron
+-- ─────────────────────────────────────────────────────────────────────
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- ─── DOCUMENTATION (copy/paste these into the SQL editor manually) ──
+--
+-- NOTE: line-prefixed (--) instead of a /* ... */ block because Postgres
+-- block comments treat */ as a terminator even inside string literals,
+-- so cron expressions like '15 */4 * * *' would close the comment early.
+--
+-- ─── Auto-refresh drawings every 4 hours (00:15, 04:15, 08:15, ... UTC) ──
+-- The function checks each game's latest date and pulls anything newer
+-- from the official feed. Idempotent — safe to over-schedule.
+--
+-- SELECT cron.schedule(
+--   'refresh-drawings',
+--   '15 */4 * * *',
+--   $$
+--     SELECT net.http_post(
+--       url     := 'https://YOUR_PROJECT_REF.functions.supabase.co/refresh-drawings',
+--       headers := jsonb_build_object(
+--         'Authorization', 'Bearer YOUR_REFRESH_DRAWINGS_SECRET',
+--         'Content-Type',  'application/json'
+--       )
+--     );
+--   $$
+-- );
+--
+-- ─── Drawing-night reminders every 15 minutes ───────────────────────
+-- The function decides whether 'now' is within the reminder window
+-- for either game and skips otherwise. ~Free to run; protects via
+-- `notification_log` UNIQUE constraint to avoid duplicate sends.
+--
+-- SELECT cron.schedule(
+--   'send-drawing-reminders',
+--   '*/15 * * * *',
+--   $$
+--     SELECT net.http_post(
+--       url     := 'https://YOUR_PROJECT_REF.functions.supabase.co/send-drawing-reminders',
+--       headers := jsonb_build_object(
+--         'Authorization', 'Bearer YOUR_REMINDER_FUNCTION_SECRET',
+--         'Content-Type',  'application/json'
+--       )
+--     );
+--   $$
+-- );
+--
+-- ─── (Optional) Daily stats refresh ─────────────────────────────────
+-- Belt-and-suspenders: explicitly recompute the stats cache once a day.
+-- The trigger on `drawings` already keeps it in sync, so this is
+-- paranoia — useful only if you ever do out-of-band inserts.
+--
+-- SELECT cron.schedule(
+--   'refresh-stats-daily',
+--   '30 6 * * *',
+--   $$
+--     SELECT net.http_post(
+--       url     := 'https://YOUR_PROJECT_REF.functions.supabase.co/refresh-stats',
+--       headers := jsonb_build_object(
+--         'Authorization', 'Bearer YOUR_REFRESH_STATS_SECRET'
+--       )
+--     );
+--   $$
+-- );
+--
+-- ─── Inspect / debug ────────────────────────────────────────────────
+--
+-- List active jobs:
+--   SELECT jobid, schedule, command FROM cron.job;
+--
+-- See last 20 runs of any job:
+--   SELECT runid, jobid, status, return_message, start_time, end_time
+--   FROM cron.job_run_details
+--   ORDER BY start_time DESC
+--   LIMIT 20;
+--
+-- Unschedule a job:
+--   SELECT cron.unschedule('refresh-drawings');

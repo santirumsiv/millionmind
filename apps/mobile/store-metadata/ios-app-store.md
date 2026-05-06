@@ -29,13 +29,11 @@ FEATURES
 — Personal pick history
 — Calendar of every drawing since 2010
 
-TIERS
-— Explorer (Free): 3 random combinations weekly
-— Analyst ($7.99/mo): 10 combinations, hot/cold dashboard, 1 year of history
-— Strategist ($19.99/mo): 50 combinations, gap & pattern generators, full history, custom filters, CSV export
-— Data Scientist ($39.99/mo): Unlimited combinations, Markov + Monte Carlo, full visualization suite, custom algorithm builder
+PLANS
+— Free (Explorer): 10 random combinations weekly across both games, basic frequency heatmap, last 30 drawings, watch-ad-for-extras
+— Pro ($2.99/mo or $19.99/yr — save 44%): All 9 algorithms — Hot, Cold, Gap, Pattern-Balanced, Markov Chain, Monte Carlo, Mixed, Anti-Syndication. Unlimited generations, full historical database, pairs & trends, CSV export, no ads.
 
-Higher tiers unlock more sophisticated analytical features — they do not increase the user's chances of winning any lottery drawing.
+Pro unlocks more sophisticated analytical features — they do not increase the user's chances of winning any lottery drawing.
 
 Users must be 18 years of age or older to play Powerball. Please play responsibly. If you or someone you know has a gambling problem, call 1-800-GAMBLER or visit ncpgambling.org.
 
@@ -64,10 +62,9 @@ powerball,lottery,statistics,analytics,frequency,heatmap,markov,monte carlo,patt
 
 ## Pricing
 
-Free download. In-app subscriptions per RevenueCat:
-- millionmind_starter_monthly — $7.99
-- millionmind_pro_monthly — $19.99
-- millionmind_elite_monthly — $39.99
+Free download. Single Pro plan, two billing variants (both map to the same `pro_access` entitlement):
+- `millionmind_pro_monthly` — auto-renewing subscription, **$2.99/mo**
+- `millionmind_pro_annual` — auto-renewing subscription, **$19.99/yr** (≈44% savings vs. monthly)
 
 ## Sign in with Apple
 

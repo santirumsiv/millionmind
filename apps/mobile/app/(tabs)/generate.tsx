@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +18,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import {
+  BannerAd,
+  BannerAdSize,
+} from "react-native-google-mobile-ads";
+import {
   ALGORITHMS,
   ALGORITHM_IDS,
   TIERS,
@@ -26,6 +31,7 @@ import {
 } from "@millionmind/shared";
 import { generateNumbers, ApiCallError } from "@/lib/api";
 import { useProfile, tierLabel } from "@/lib/queries";
+import { BANNER_AD_UNIT_ID, claimRewardedBonus, showRewardedAd } from "@/lib/ads";
 import { PowerballNumber } from "@/components/PowerballNumber";
 import { DisclaimerFooter } from "@/components/DisclaimerFooter";
 
@@ -33,6 +39,8 @@ export default function GenerateScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data: profile } = useProfile();
+  const isPro = profile?.tier === "pro";
+  const [watchingAd, setWatchingAd] = useState(false);
   const tier = profile?.tier ?? "free";
 
   const [active, setActive] = useState<AlgorithmId>("random");
@@ -79,6 +87,30 @@ export default function GenerateScreen() {
       }
     } finally {
       setPending(false);
+    }
+  }
+
+  async function onWatchAdForBonus() {
+    setWatchingAd(true);
+    try {
+      const earned = await showRewardedAd();
+      if (!earned) {
+        return;
+      }
+      const result = await claimRewardedBonus();
+      if (!result) {
+        Alert.alert(
+          "Bonus already claimed",
+          "You've already redeemed all 5 ad bonuses this week. Resets Monday.",
+        );
+        return;
+      }
+      Alert.alert(
+        "+1 generation unlocked",
+        `${result.remainingBonusUses} ad bonus ${result.remainingBonusUses === 1 ? "use" : "uses"} left this week.`,
+      );
+    } finally {
+      setWatchingAd(false);
     }
   }
 
@@ -145,6 +177,34 @@ export default function GenerateScreen() {
             </Text>
           )}
         </Pressable>
+
+        {/* Free tier: rewarded-ad button to unlock +1 generation */}
+        {!isPro ? (
+          <Pressable
+            onPress={onWatchAdForBonus}
+            disabled={watchingAd}
+            className="border border-gold-deep py-4 mt-3 active:border-gold disabled:opacity-50"
+          >
+            {watchingAd ? (
+              <ActivityIndicator color="#c9a66b" />
+            ) : (
+              <Text className="text-center font-mono text-[10px] uppercase tracking-[2px] text-gold">
+                ▶ Watch ad for +1 generation
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
+
+        {/* Free tier: banner ad below the generate controls */}
+        {!isPro ? (
+          <View className="items-center mt-6">
+            <BannerAd
+              unitId={BANNER_AD_UNIT_ID}
+              size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+              requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+            />
+          </View>
+        ) : null}
 
         {error ? (
           <View className="mt-5 border border-warn bg-bg p-4">

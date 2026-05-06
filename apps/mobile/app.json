@@ -43,12 +43,27 @@
       "expo-font",
       "expo-apple-authentication",
       "expo-secure-store",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#0a0e0f",
           "image": "./assets/splash.png",
           "resizeMode": "contain"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY",
+          "iosAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~ZZZZZZZZZZ",
+          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you.",
+          "skAdNetworkItems": [
+            "cstr6suwn9.skadnetwork",
+            "4fzdc2evr5.skadnetwork",
+            "2fnua5tdw4.skadnetwork",
+            "ydx93a7ass.skadnetwork"
+          ]
         }
       ]
     ],

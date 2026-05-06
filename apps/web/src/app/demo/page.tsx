@@ -14,15 +14,23 @@ import {
 import {
   ALGORITHMS,
   ALGORITHM_IDS,
-  DISCLAIMER_FULL,
+  GAMES,
+  GAME_IDS,
+  PRO_BILLING,
+  TIERS,
+  UPCOMING_GAMES,
   computeStats,
   computeSweetSpot,
   computeTopPairs,
+  disclaimerFor,
   generate,
+  tierIncludesAlgorithm,
   type AlgorithmId,
   type Combination,
   type DrawingRow,
+  type GameId,
   type NumberStat,
+  type TierId,
 } from "@millionmind/shared";
 import { Heatmap } from "@/components/Heatmap";
 import { PowerballRow } from "@/components/PowerballRow";
@@ -33,10 +41,13 @@ const SET_COUNTS = [1, 3, 5, 8, 10] as const;
 
 interface DemoResult extends Combination {
   algorithm: AlgorithmId;
+  game: GameId;
   generated_at: string;
 }
 
 export default function DemoPage() {
+  const [tier, setTier] = useState<TierId>("pro");
+  const [game, setGame] = useState<GameId>("powerball");
   const [drawings, setDrawings] = useState<DrawingRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("generate");
@@ -45,15 +56,29 @@ export default function DemoPage() {
   const [results, setResults] = useState<DemoResult[]>([]);
   const [generating, setGenerating] = useState(false);
 
+  // When previewing Free, force the algorithm and set count into the
+  // allowed range so users see the realistic experience.
   useEffect(() => {
-    fetchDemoDrawings()
+    if (tier === "free") {
+      if (!tierIncludesAlgorithm("free", active)) setActive("random");
+      const cap = TIERS.free.weeklyGenerationCap;
+      if (typeof cap === "number" && setCount > cap) setSetCount(cap);
+    }
+  }, [tier, active, setCount]);
+
+  // Re-load drawings whenever the game changes.
+  useEffect(() => {
+    setDrawings(null);
+    setResults([]);
+    setLoadError(null);
+    fetchDemoDrawings(game)
       .then(setDrawings)
       .catch((e) => setLoadError(e.message));
-  }, []);
+  }, [game]);
 
   const stats: NumberStat[] = useMemo(
-    () => (drawings ? computeStats(drawings) : []),
-    [drawings],
+    () => (drawings ? computeStats(drawings, game) : []),
+    [drawings, game],
   );
 
   const whitesByFreq = useMemo(
@@ -92,15 +117,14 @@ export default function DemoPage() {
   function onGenerate() {
     if (!drawings) return;
     setGenerating(true);
-    // Defer to next tick so the loading state renders before Monte Carlo's
-    // 10K-iteration loop blocks the thread.
     setTimeout(() => {
       const next: DemoResult[] = [];
       for (let i = 0; i < setCount; i++) {
-        const combo = generate(active, { stats, drawings });
+        const combo = generate(active, { game, stats, drawings });
         next.push({
           ...combo,
           algorithm: active,
+          game,
           generated_at: new Date().toISOString(),
         });
       }
@@ -108,6 +132,8 @@ export default function DemoPage() {
       setGenerating(false);
     }, 0);
   }
+
+  const gameDef = GAMES[game];
 
   if (loadError) {
     return (
@@ -123,26 +149,157 @@ export default function DemoPage() {
     );
   }
 
+  const tierDef = TIERS[tier];
+  const setCountOptions =
+    tier === "free"
+      ? SET_COUNTS.filter((n) => n <= (TIERS.free.weeklyGenerationCap as number))
+      : SET_COUNTS;
+
   return (
     <main className="page-content max-w-[1180px] mx-auto px-6 md:px-12 py-10">
-      <header className="flex items-center justify-between border-b border-rule pb-5 mb-8">
+      <header className="flex items-center justify-between border-b border-rule pb-5 mb-8 gap-4 flex-wrap">
         <Link
           href="/"
           className="font-mono text-[12px] tracking-[0.28em] uppercase text-gold font-medium"
         >
           ◆ Million Mind
         </Link>
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
-          Local demo · all unlocked
-        </span>
+
+        {/* Plan preview toggle */}
+        <div className="inline-flex border border-rule">
+          <button
+            type="button"
+            onClick={() => setTier("free")}
+            className={`px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
+              tier === "free"
+                ? "bg-rule text-ink"
+                : "text-ink-soft hover:text-ink"
+            }`}
+            aria-pressed={tier === "free"}
+          >
+            Preview · Free
+          </button>
+          <button
+            type="button"
+            onClick={() => setTier("pro")}
+            className={`px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
+              tier === "pro"
+                ? "bg-gold text-bg"
+                : "text-ink-soft hover:text-ink"
+            }`}
+            aria-pressed={tier === "pro"}
+          >
+            Preview · Pro
+          </button>
+        </div>
       </header>
+
+      {/* ───── Tier banner ───── */}
+      {tier === "free" ? (
+        <div className="border border-rule bg-bg-elevated px-5 py-4 mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint mb-1">
+              You&apos;re previewing the Free tier
+            </p>
+            <p className="text-ink-soft text-sm">
+              Random algorithm only · 10 generations / week across both games · Watch ads for up to 5 extra
+            </p>
+          </div>
+          <Link
+            href="/sign-up"
+            className="bg-gold text-bg font-mono text-[10px] uppercase tracking-[0.2em] px-5 py-3 hover:bg-gold-bright transition-colors whitespace-nowrap"
+          >
+            Unlock Pro · ${TIERS.pro.priceMonthlyUsd.toFixed(2)}/mo
+          </Link>
+        </div>
+      ) : (
+        <div className="border border-gold-deep bg-bg-panel/40 px-5 py-3 mb-8 flex flex-wrap items-center gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
+            Pro preview
+          </span>
+          <span className="text-ink-soft text-sm">
+            All 9 algorithms unlocked across both games · unlimited generations · no ads. ${PRO_BILLING.monthly.priceUsd}/mo or ${PRO_BILLING.annual.priceUsd}/yr (save {PRO_BILLING.annual.savingsPct}%).
+          </span>
+        </div>
+      )}
+
+      {/* ───── Game switcher ───── */}
+      <section className="mb-8">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint mb-3">
+          Choose game
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          {GAME_IDS.map((id) => {
+            const g = GAMES[id];
+            const isActive = game === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setGame(id)}
+                className={`px-5 py-3 border transition-colors flex flex-col items-start gap-0.5 min-w-[180px] ${
+                  isActive
+                    ? "border-gold bg-bg-panel ring-1 ring-gold"
+                    : "border-rule bg-bg-elevated hover:border-gold-deep"
+                }`}
+                aria-pressed={isActive}
+              >
+                <span className="font-display text-[18px] text-ink leading-tight">
+                  {g.name}
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
+                  5/{g.whiteMax} + 1/{g.specialMax} · {g.drawWeekdays.length}× weekly
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Coming-soon strip */}
+        <div className="mt-5 border-t border-rule-soft pt-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint mb-3">
+            Coming soon
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {UPCOMING_GAMES.map((g) => (
+              <div
+                key={g.id}
+                title={`${g.tagline} · ${g.states}`}
+                className={`px-4 py-2 border flex flex-col items-start gap-0.5 min-w-[180px] opacity-60 cursor-default ${
+                  g.priority === "next"
+                    ? "border-gold-deep bg-bg-elevated/40"
+                    : "border-rule bg-bg-elevated/30"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-display text-[15px] text-ink-soft leading-tight">
+                    {g.name}
+                  </span>
+                  <span
+                    className={`font-mono text-[8px] uppercase tracking-[0.2em] px-1.5 py-0.5 ${
+                      g.priority === "next"
+                        ? "text-gold border border-gold-deep"
+                        : "text-ink-faint border border-rule"
+                    }`}
+                  >
+                    {g.priority === "next" ? "Up Next" : "Soon"}
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
+                  {g.matrix.replace(/ /g, "")} · {g.drawSchedule.split(" ·")[0]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ───── Hero + summary stats banner ───── */}
       <section className="mb-10">
         <div className="grid md:grid-cols-[1fr_auto] gap-8 items-end">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold mb-3">
-              ◆ Powerball advisor
+              ◆ {gameDef.name} advisor
             </p>
             <h1 className="font-display text-[clamp(36px,4.5vw,52px)] leading-[1.05] text-ink mb-2">
               Statistical analysis
@@ -198,20 +355,32 @@ export default function DemoPage() {
               {ALGORITHM_IDS.map((id) => {
                 const algo = ALGORITHMS[id];
                 const isActive = active === id;
+                const unlocked = tierIncludesAlgorithm(tier, id);
                 return (
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setActive(id)}
-                    className={`text-left p-5 border transition-all ${
-                      isActive
-                        ? "border-gold bg-bg-panel ring-1 ring-gold"
-                        : "border-rule bg-bg-elevated hover:border-gold-deep"
+                    onClick={() => unlocked && setActive(id)}
+                    disabled={!unlocked}
+                    className={`text-left p-5 border transition-all relative ${
+                      !unlocked
+                        ? "border-rule-soft bg-bg-elevated/40 opacity-60 cursor-not-allowed"
+                        : isActive
+                          ? "border-gold bg-bg-panel ring-1 ring-gold"
+                          : "border-rule bg-bg-elevated hover:border-gold-deep"
                     }`}
                     aria-pressed={isActive}
+                    aria-disabled={!unlocked}
                   >
-                    <div className="font-display text-[18px] text-ink leading-tight mb-1">
-                      {ALGO_ICON[id] ?? "◆"} {algo.name}
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="font-display text-[18px] text-ink leading-tight">
+                        {ALGO_ICON[id] ?? "◆"} {algo.name}
+                      </div>
+                      {!unlocked ? (
+                        <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-gold border border-gold-deep px-2 py-0.5 whitespace-nowrap">
+                          🔒 Pro
+                        </span>
+                      ) : null}
                     </div>
                     <p className="text-ink-soft text-[13px] leading-relaxed">
                       {algo.shortDescription}
@@ -220,6 +389,12 @@ export default function DemoPage() {
                 );
               })}
             </div>
+
+            {tier === "free" ? (
+              <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint mt-4">
+                🔒 8 advanced algorithms unlock with Pro · ${TIERS.pro.priceMonthlyUsd.toFixed(2)}/mo
+              </p>
+            ) : null}
           </div>
 
           <div className="border border-rule bg-bg-elevated p-6">
@@ -228,22 +403,33 @@ export default function DemoPage() {
                 Number of sets
               </span>
               <div className="flex gap-2">
-                {SET_COUNTS.map((n) => (
+                {SET_COUNTS.map((n) => {
+                  const allowed = setCountOptions.includes(n);
+                  return (
                   <button
                     key={n}
                     type="button"
-                    onClick={() => setSetCount(n)}
+                    onClick={() => allowed && setSetCount(n)}
+                    disabled={!allowed}
                     className={`w-10 h-10 border font-mono text-[13px] transition-colors ${
-                      setCount === n
-                        ? "border-gold bg-gold text-bg"
-                        : "border-rule text-ink-soft hover:border-gold-deep"
+                      !allowed
+                        ? "border-rule-soft text-ink-faint opacity-40 cursor-not-allowed"
+                        : setCount === n
+                          ? "border-gold bg-gold text-bg"
+                          : "border-rule text-ink-soft hover:border-gold-deep"
                     }`}
                     aria-pressed={setCount === n}
                   >
                     {n}
                   </button>
-                ))}
+                  );
+                })}
               </div>
+              {tier === "free" ? (
+                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
+                  Free cap: 10/wk total
+                </span>
+              ) : null}
             </div>
 
             <button
@@ -256,7 +442,7 @@ export default function DemoPage() {
                 ? "Loading drawings…"
                 : generating
                   ? "Generating…"
-                  : `🎯 Generate ${setCount} ${setCount === 1 ? "set" : "sets"}`}
+                  : `🎯 Generate ${setCount} ${setCount === 1 ? "set" : "sets"} · ${gameDef.shortName}`}
             </button>
           </div>
 
@@ -264,7 +450,7 @@ export default function DemoPage() {
             <div className="space-y-4">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
                 {results.length} {results.length === 1 ? "set" : "sets"} ·{" "}
-                {ALGORITHMS[results[0]!.algorithm].name}
+                {ALGORITHMS[results[0]!.algorithm].name} · {GAMES[results[0]!.game].name}
               </p>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {results.map((r, i) => (
@@ -284,14 +470,14 @@ export default function DemoPage() {
                 ))}
               </div>
               <p className="text-ink-faint text-[11px] leading-relaxed pt-4 border-t border-rule">
-                {DISCLAIMER_FULL}
+                {disclaimerFor(game)}
               </p>
             </div>
           ) : null}
 
           <div className="border border-warn-deep bg-bg-panel/40 p-4">
             <p className="font-mono text-[11px] tracking-wide text-warn">
-              ⚠ Statistical analysis only. Powerball drawings are independent random events — odds remain 1 in 292,201,338 regardless of selection. Play responsibly.
+              ⚠ Statistical analysis only. {gameDef.name} drawings are independent random events — odds remain {gameDef.jackpotOdds} regardless of selection. Play responsibly.
             </p>
           </div>
         </section>
@@ -304,11 +490,16 @@ export default function DemoPage() {
             <header className="flex items-baseline justify-between mb-4">
               <h2 className="font-display text-[28px] text-ink">White ball heatmap</h2>
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
-                1–69
+                {gameDef.whiteMin}–{gameDef.whiteMax}
               </span>
             </header>
             {drawings ? (
-              <Heatmap stats={stats} ballType="white" count={69} cols={10} />
+              <Heatmap
+                stats={stats}
+                ballType="white"
+                count={gameDef.whiteMax}
+                cols={10}
+              />
             ) : (
               <p className="text-ink-faint text-sm">Loading…</p>
             )}
@@ -316,13 +507,20 @@ export default function DemoPage() {
 
           <div>
             <header className="flex items-baseline justify-between mb-4">
-              <h2 className="font-display text-[28px] text-ink">Powerball heatmap</h2>
+              <h2 className="font-display text-[28px] text-ink">
+                {gameDef.specialName} heatmap
+              </h2>
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
-                1–26
+                {gameDef.specialMin}–{gameDef.specialMax}
               </span>
             </header>
             {drawings ? (
-              <Heatmap stats={stats} ballType="powerball" count={26} cols={7} />
+              <Heatmap
+                stats={stats}
+                ballType="powerball"
+                count={gameDef.specialMax}
+                cols={7}
+              />
             ) : null}
           </div>
 
@@ -404,7 +602,7 @@ export default function DemoPage() {
               Most frequent pairs
             </h2>
             <p className="text-ink-soft text-[15px] leading-relaxed max-w-[64ch]">
-              Numbers that have appeared together most often across {drawings?.length ?? 0} drawings. Co-occurrence is a property of the historical data — it does not predict whether they&apos;ll appear together in any future drawing.
+              Numbers that have appeared together most often across {drawings?.length ?? 0} {gameDef.name} drawings. Co-occurrence is a property of the historical data — it does not predict whether they&apos;ll appear together in any future drawing.
             </p>
           </div>
 
@@ -446,7 +644,7 @@ export default function DemoPage() {
       ) : null}
 
       <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint text-center pt-12 mt-12 border-t border-rule">
-        Powerball drawings are independent random events. Past frequencies do not predict future draws.
+        {gameDef.name} drawings are independent random events. Past frequencies do not predict future draws.
       </p>
     </main>
   );

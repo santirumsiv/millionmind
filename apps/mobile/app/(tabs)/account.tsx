@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Pressable, Linking } from "react-native";
+import { useState } from "react";
+import { View, Text, ScrollView, Pressable, Linking, Switch, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -6,10 +7,22 @@ import {
   TIER_ORDER,
   RESPONSIBLE_GAMING_HOTLINE,
   RESPONSIBLE_GAMING_URL,
+  generationsToCsv,
+  todayStampedFilename,
 } from "@millionmind/shared";
-import { useProfile, useUsageThisWeek, tierLabel } from "@/lib/queries";
+import {
+  useProfile,
+  useUsageThisWeek,
+  useMyCombinations,
+  tierLabel,
+} from "@/lib/queries";
 import { useAuthStore } from "@/stores/auth";
 import { restorePurchases } from "@/lib/revenuecat";
+import { shareCsv } from "@/lib/share-csv";
+import {
+  registerForPushNotifications,
+  setNotificationsEnabled,
+} from "@/lib/push";
 import { DisclaimerFooter } from "@/components/DisclaimerFooter";
 
 export default function AccountScreen() {
@@ -17,7 +30,9 @@ export default function AccountScreen() {
   const router = useRouter();
   const { data: profile, refetch: refetchProfile } = useProfile();
   const { data: usage } = useUsageThisWeek();
+  const { data: myCombinations } = useMyCombinations(500);
   const signOut = useAuthStore((s) => s.signOut);
+  const [pushSaving, setPushSaving] = useState(false);
 
   async function onRestore() {
     try {
@@ -28,9 +43,41 @@ export default function AccountScreen() {
     }
   }
 
+  async function onExportGenerations() {
+    if (!myCombinations || myCombinations.length === 0) return;
+    await shareCsv(
+      generationsToCsv(myCombinations),
+      todayStampedFilename("my_generations"),
+    );
+  }
+
+  async function onToggleReminders(value: boolean) {
+    setPushSaving(true);
+    try {
+      if (value) {
+        const token = await registerForPushNotifications();
+        if (!token) {
+          Alert.alert(
+            "Permissions needed",
+            "Enable notifications for Million Mind in your device settings, then try again.",
+          );
+          return;
+        }
+      }
+      await setNotificationsEnabled(value);
+      await refetchProfile();
+    } finally {
+      setPushSaving(false);
+    }
+  }
+
   const tier = profile?.tier ?? "free";
+  const isPro = tier === "pro";
   const cap = TIERS[tier].weeklyGenerationCap;
   const usedCount = usage?.count ?? 0;
+  const remindersOn =
+    (profile as unknown as { notifications_enabled?: boolean } | null)
+      ?.notifications_enabled === true;
 
   return (
     <ScrollView
@@ -75,6 +122,61 @@ export default function AccountScreen() {
             Used {usedCount} {cap === "unlimited" ? "" : `of ${cap}`} this week.
           </Text>
         </View>
+
+        {/* Drawing reminders — Pro only */}
+        {isPro ? (
+          <View>
+            <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold mb-3">
+              Drawing reminders
+            </Text>
+            <View className="border border-rule bg-bg-elevated p-4 flex-row items-center justify-between gap-4">
+              <View className="flex-1">
+                <Text className="font-display text-[16px] text-ink mb-1">
+                  Push 30 minutes before each draw
+                </Text>
+                <Text className="text-ink-soft text-[13px] leading-relaxed">
+                  Powerball: Mon · Wed · Sat at 22:59 ET. Mega Millions: Tue · Fri at 23:00 ET.
+                </Text>
+              </View>
+              <Switch
+                value={remindersOn}
+                onValueChange={onToggleReminders}
+                disabled={pushSaving}
+                trackColor={{ false: "#2a3236", true: "#8a6f3f" }}
+                thumbColor={remindersOn ? "#c9a66b" : "#6b6960"}
+              />
+            </View>
+          </View>
+        ) : null}
+
+        {/* Data export — Pro only */}
+        {isPro ? (
+          <View>
+            <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold mb-3">
+              Export your data
+            </Text>
+            <View className="border border-rule bg-bg-elevated p-4">
+              <Text className="font-display text-[16px] text-ink mb-1">
+                Generation history
+              </Text>
+              <Text className="text-ink-soft text-[13px] leading-relaxed mb-3">
+                Share or save every combination you&apos;ve generated as a CSV.{" "}
+                {myCombinations
+                  ? `${myCombinations.length} ${myCombinations.length === 1 ? "row" : "rows"}.`
+                  : "Loading…"}
+              </Text>
+              <Pressable
+                onPress={onExportGenerations}
+                disabled={!myCombinations || myCombinations.length === 0}
+                className="border border-gold-deep py-3 active:border-gold disabled:opacity-50"
+              >
+                <Text className="text-center font-mono text-[10px] uppercase tracking-[2px] text-gold">
+                  ↓ Export CSV
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         <View>
           <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold mb-3">

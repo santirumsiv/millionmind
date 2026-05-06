@@ -70,5 +70,14 @@ verify_jwt = false
 [functions.refresh-stats]
 verify_jwt = false
 
+[functions.send-drawing-reminders]
+verify_jwt = false
+
+[functions.claim-rewarded-bonus]
+verify_jwt = true
+
+[functions.refresh-drawings]
+verify_jwt = false
+
 [analytics]
 enabled = false

@@ -6,21 +6,35 @@ import {
   TIER_ORDER,
   RESPONSIBLE_GAMING_HOTLINE,
   RESPONSIBLE_GAMING_URL,
+  generationsToCsv,
+  todayStampedFilename,
 } from "@millionmind/shared";
 import { signOut } from "../../(auth)/actions";
 import {
   useProfile,
   useUsageThisWeek,
+  useMyCombinations,
   tierLabel,
 } from "@/lib/queries";
+import { downloadCsv } from "@/lib/download";
 
 export default function AccountPage() {
   const { data: profile } = useProfile();
   const { data: usage } = useUsageThisWeek();
+  const { data: myCombinations } = useMyCombinations(500);
 
   const tier = profile?.tier ?? "free";
+  const isPro = tier === "pro";
   const cap = TIERS[tier].weeklyGenerationCap;
   const usedCount = usage?.count ?? 0;
+
+  function onExportGenerations() {
+    if (!myCombinations || !isPro) return;
+    downloadCsv(
+      generationsToCsv(myCombinations),
+      todayStampedFilename("my_generations"),
+    );
+  }
 
   return (
     <main className="space-y-10">
@@ -65,6 +79,36 @@ export default function AccountPage() {
           </div>
         </div>
       </section>
+
+      {/* Data export — Pro only */}
+      {isPro ? (
+        <section>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold mb-4">
+            Export your data
+          </p>
+          <div className="border border-rule bg-bg-elevated p-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="font-display text-[18px] text-ink mb-1">
+                Generation history
+              </p>
+              <p className="text-ink-soft text-[13px] leading-relaxed">
+                Download every combination you&apos;ve generated as a CSV.{" "}
+                {myCombinations
+                  ? `${myCombinations.length} ${myCombinations.length === 1 ? "row" : "rows"} ready.`
+                  : "Loading…"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onExportGenerations}
+              disabled={!myCombinations || myCombinations.length === 0}
+              className="border border-gold-deep text-gold font-mono text-[10px] uppercase tracking-[0.2em] px-5 py-3 hover:border-gold disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              ↓ Download CSV
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section>
         <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold mb-4">

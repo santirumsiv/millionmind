@@ -2,8 +2,11 @@ import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native"
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState, useCallback } from "react";
-import { TIERS } from "@millionmind/shared";
+import { Linking } from "react-native";
+import { GAMES, TIERS } from "@millionmind/shared";
 import {
+  FREE_LIMITS,
+  daysAgoIso,
   useMyCombinations,
   useProfile,
   useRecentDrawings,
@@ -18,7 +21,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { data: profile, refetch: refetchProfile } = useProfile();
   const { data: usage, refetch: refetchUsage } = useUsageThisWeek();
-  const { data: combos, refetch: refetchCombos } = useMyCombinations(3);
+  const { data: combos, refetch: refetchCombos } = useMyCombinations(20);
   const { data: drawings, refetch: refetchDrawings } = useRecentDrawings(1);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -29,11 +32,17 @@ export default function HomeScreen() {
   }, [refetchProfile, refetchUsage, refetchCombos, refetchDrawings]);
 
   const tier = profile?.tier ?? "free";
+  const isPro = tier === "pro";
   const cap = TIERS[tier].weeklyGenerationCap;
   const remaining =
     cap === "unlimited" ? "unlimited" : Math.max(0, cap - (usage?.count ?? 0));
   const lastDraw = drawings?.[0];
   const next = nextDrawingDate();
+
+  const visibleCombos = (combos ?? [])
+    .filter((c) => isPro || c.created_at >= daysAgoIso(FREE_LIMITS.myGenerationsDays))
+    .slice(0, 3);
+  const olderCombosCount = (combos ?? []).length - visibleCombos.length;
 
   return (
     <ScrollView
@@ -77,9 +86,18 @@ export default function HomeScreen() {
           </View>
 
           <View className="border border-rule bg-bg-elevated p-5">
-            <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold mb-3">
-              Last drawing
-            </Text>
+            <View className="flex-row justify-between items-baseline mb-3">
+              <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold">
+                Last drawing
+              </Text>
+              <Pressable
+                onPress={() => Linking.openURL(GAMES.powerball.officialResultsUrl)}
+              >
+                <Text className="font-mono text-[10px] uppercase tracking-[1.5px] text-ink-faint">
+                  powerball.com ↗
+                </Text>
+              </Pressable>
+            </View>
             {lastDraw ? (
               <>
                 <Text className="font-mono text-[11px] text-ink-soft mb-3">
@@ -97,12 +115,19 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold mb-3">
-          Recent generations
-        </Text>
-        {combos && combos.length > 0 ? (
+        <View className="flex-row justify-between items-baseline mb-3">
+          <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold">
+            Recent generations
+          </Text>
+          {!isPro ? (
+            <Text className="font-mono text-[9px] uppercase tracking-[2px] text-ink-faint">
+              Free · last {FREE_LIMITS.myGenerationsDays}d
+            </Text>
+          ) : null}
+        </View>
+        {visibleCombos.length > 0 ? (
           <View className="gap-3">
-            {combos.map((c) => (
+            {visibleCombos.map((c) => (
               <View key={c.id} className="border border-rule bg-bg-elevated p-4">
                 <PowerballRow whiteBalls={c.white_balls} powerball={c.powerball} size="sm" />
                 <Text className="font-mono text-[10px] uppercase tracking-[2px] text-ink-faint mt-3">
@@ -111,6 +136,21 @@ export default function HomeScreen() {
                 </Text>
               </View>
             ))}
+
+            {!isPro && olderCombosCount > 0 ? (
+              <Pressable
+                onPress={() => router.push("/(app)/subscribe")}
+                className="border border-gold-deep bg-bg-elevated/40 p-4 active:border-gold"
+              >
+                <Text className="text-ink-soft text-[13px]">
+                  🔒 {olderCombosCount} older{" "}
+                  {olderCombosCount === 1 ? "generation" : "generations"} hidden — Pro keeps your full history.
+                </Text>
+                <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold mt-2">
+                  Upgrade →
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : (
           <View className="border border-rule bg-bg-elevated p-5">

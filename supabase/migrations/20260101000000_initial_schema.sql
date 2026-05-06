@@ -108,7 +108,11 @@ CREATE TABLE IF NOT EXISTS public.generated_combinations (
   user_id         UUID NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
   white_balls     INT[] NOT NULL CHECK (
                     array_length(white_balls, 1) = 5
-                    AND white_balls <@ ARRAY(SELECT generate_series(1, 69))
+                    AND white_balls[1] BETWEEN 1 AND 70
+                    AND white_balls[2] BETWEEN 1 AND 70
+                    AND white_balls[3] BETWEEN 1 AND 70
+                    AND white_balls[4] BETWEEN 1 AND 70
+                    AND white_balls[5] BETWEEN 1 AND 70
                   ),
   powerball       INT NOT NULL CHECK (powerball BETWEEN 1 AND 26),
   algorithm_used  TEXT NOT NULL CHECK (

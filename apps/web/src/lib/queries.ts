@@ -104,5 +104,22 @@ function isoMondayUtc(): string {
 }
 
 export function tierLabel(tier: TierId): string {
-  return { free: "Explorer", starter: "Analyst", pro: "Strategist", elite: "Data Scientist" }[tier];
+  return tier === "pro" ? "Pro" : "Explorer";
+}
+
+/**
+ * Free tier limits — derived from BUSINESS_ANALYSIS.md restriction matrix.
+ * These are UI-side; the server-side weekly cap is enforced separately
+ * in the generate-numbers Edge Function.
+ */
+export const FREE_LIMITS = {
+  drawingsHistory: 30,
+  myGenerationsDays: 7,
+} as const;
+
+/** Compute the cutoff ISO date for "last N days" filtering. */
+export function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
 }

@@ -62,25 +62,32 @@ python supabase/scripts/doctor.py
 ```bash
 supabase secrets set \
   REVENUECAT_WEBHOOK_SECRET=$(openssl rand -hex 32) \
-  REFRESH_STATS_SECRET=$(openssl rand -hex 32)
+  REFRESH_STATS_SECRET=$(openssl rand -hex 32) \
+  REFRESH_DRAWINGS_SECRET=$(openssl rand -hex 32) \
+  REMINDER_FUNCTION_SECRET=$(openssl rand -hex 32)
 
 supabase functions deploy generate-numbers
 supabase functions deploy revenuecat-webhook
 supabase functions deploy refresh-stats
+supabase functions deploy refresh-drawings
+supabase functions deploy send-drawing-reminders
+supabase functions deploy claim-rewarded-bonus
 ```
 
-## Weekly refresh — choose one
+## Auto-refresh drawings (production)
 
-**Option A: pg_cron (preferred, runs in-database):**
+The `refresh-drawings` Edge Function pulls new drawings for **every game in the registry** from each game's official data feed and inserts anything newer than what's in the DB. Game-aware — adding a third game (Cash4Life, Lucky for Life, etc.) means extending `packages/shared/src/games.ts` + `_shared/games.ts`; this function picks them up automatically.
+
+Schedule it via `pg_cron`. The migration `20260505060000_pg_cron_setup.sql` documents the SQL — run it once in the SQL editor (after replacing `YOUR_PROJECT_REF` and the bearer secret values):
 
 ```sql
--- Run once in the Supabase SQL editor:
+-- Auto-refresh drawings every 4 hours.
 SELECT cron.schedule(
-  'refresh-powerball',
-  '0 9 * * 0',                                  -- Sundays 9am UTC
+  'refresh-drawings',
+  '15 */4 * * *',
   $$SELECT net.http_post(
-      url := 'https://YOUR_PROJECT.functions.supabase.co/refresh-stats',
-      headers := jsonb_build_object('Authorization', 'Bearer ' || current_setting('app.refresh_secret'))
+      url := 'https://YOUR_PROJECT_REF.functions.supabase.co/refresh-drawings',
+      headers := jsonb_build_object('Authorization', 'Bearer YOUR_REFRESH_DRAWINGS_SECRET')
     )$$
 );
 ```

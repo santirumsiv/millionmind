@@ -126,10 +126,10 @@ def parse_drawing(raw: dict[str, Any]) -> dict[str, Any] | None:
 def insert_drawings(conn, drawings: list[dict[str, Any]]) -> None:
     """Bulk-insert with ON CONFLICT for idempotency."""
     sql = """
-        INSERT INTO public.drawings (draw_date, n1, n2, n3, n4, n5, powerball, multiplier)
-        VALUES (%(draw_date)s, %(n1)s, %(n2)s, %(n3)s, %(n4)s,
+        INSERT INTO public.drawings (game, draw_date, n1, n2, n3, n4, n5, powerball, multiplier)
+        VALUES ('powerball', %(draw_date)s, %(n1)s, %(n2)s, %(n3)s, %(n4)s,
                 %(n5)s, %(powerball)s, %(multiplier)s)
-        ON CONFLICT (draw_date) DO NOTHING
+        ON CONFLICT (game, draw_date) DO NOTHING
     """
     with conn.cursor() as cur:
         execute_batch(cur, sql, drawings, page_size=500)
