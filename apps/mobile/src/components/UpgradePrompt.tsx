@@ -1,13 +1,21 @@
 import { View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { TIERS } from "@millionmind/shared";
+import { track, type AnalyticsEvent } from "@/lib/analytics";
+
+type UpgradeSource = Extract<
+  AnalyticsEvent,
+  { name: "upgrade_cta_clicked" }
+>["source"];
 
 interface UpgradePromptProps {
   feature: string;
   detail?: string;
+  /** Where in the app this prompt appears — fed into upgrade_cta_clicked. */
+  source: UpgradeSource;
 }
 
-export function UpgradePrompt({ feature, detail }: UpgradePromptProps) {
+export function UpgradePrompt({ feature, detail, source }: UpgradePromptProps) {
   const router = useRouter();
   return (
     <View className="border border-gold-deep bg-bg-elevated/60 p-6 items-center gap-3">
@@ -23,7 +31,10 @@ export function UpgradePrompt({ feature, detail }: UpgradePromptProps) {
         </Text>
       ) : null}
       <Pressable
-        onPress={() => router.push("/(app)/subscribe")}
+        onPress={() => {
+          track({ name: "upgrade_cta_clicked", source });
+          router.push("/(app)/subscribe");
+        }}
         className="bg-gold py-3 px-6 active:bg-gold-bright self-stretch"
       >
         <Text className="text-center font-mono text-[11px] tracking-[3px] uppercase text-bg font-semibold">

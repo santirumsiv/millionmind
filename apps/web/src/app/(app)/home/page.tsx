@@ -12,6 +12,7 @@ import {
   tierLabel,
 } from "@/lib/queries";
 import { PowerballRow } from "@/components/PowerballRow";
+import { track } from "@/lib/analytics";
 
 export default function HomePage() {
   const { data: profile } = useProfile();
@@ -135,6 +136,7 @@ export default function HomePage() {
                 </span>
                 <Link
                   href="/account"
+                  onClick={() => track({ name: "upgrade_cta_clicked", source: "home" })}
                   className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold hover:text-gold-bright"
                 >
                   Upgrade →

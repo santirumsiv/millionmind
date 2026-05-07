@@ -8,6 +8,11 @@ import {
   logoutRevenueCat,
 } from "@/lib/revenuecat";
 import { initAds } from "@/lib/ads";
+import {
+  identify as identifyAnalytics,
+  resetAnalytics,
+  trackSignupCompletedOnce,
+} from "@/lib/analytics";
 
 interface AuthState {
   session: Session | null;
@@ -40,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data.session?.user) {
       await get().refreshTier();
       await loginRevenueCat(data.session.user.id);
+      void identifyFromProfile(data.session.user.id);
     }
 
     supabase.auth.onAuthStateChange((event, session) => {
@@ -47,9 +53,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (session?.user) {
         void get().refreshTier();
         void loginRevenueCat(session.user.id);
+        void identifyFromProfile(session.user.id);
+        if (event === "SIGNED_IN") {
+          void trackSignupCompletedOnce(session.user.id);
+        }
       } else {
         if (event === "SIGNED_OUT") {
           void logoutRevenueCat();
+          resetAnalytics();
         }
         set({ tier: "free" });
       }
@@ -77,3 +88,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
+async function identifyFromProfile(userId: string): Promise<void> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("tier, pro_billing_variant, created_at, notifications_enabled")
+    .eq("id", userId)
+    .maybeSingle();
+  identifyAnalytics(userId, {
+    tier: data?.tier ?? "free",
+    pro_billing_variant: data?.pro_billing_variant ?? undefined,
+    signup_date: data?.created_at ?? undefined,
+    notifications_enabled: data?.notifications_enabled ?? undefined,
+  });
+}

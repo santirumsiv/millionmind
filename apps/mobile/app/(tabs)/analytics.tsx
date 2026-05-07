@@ -128,6 +128,7 @@ export default function AnalyticsScreen() {
             <UpgradePrompt
               feature="Powerball heatmap (1–26)"
               detail="Pro unlocks the special-ball heatmap with full hover details."
+              source="analytics"
             />
           </View>
         )}
@@ -152,6 +153,7 @@ export default function AnalyticsScreen() {
             <UpgradePrompt
               feature="Sum-distribution analytics"
               detail="See how the 5-ball sum clusters around the historical mean. Used by Pattern-Balanced and Monte Carlo to score combinations."
+              source="analytics"
             />
           </View>
         )}
@@ -207,6 +209,7 @@ export default function AnalyticsScreen() {
             <UpgradePrompt
               feature="Top co-occurring number pairs"
               detail="See which numbers have appeared together most often across the full historical dataset. Pro unlocks the top 15 pairs."
+              source="analytics"
             />
           </View>
         )}

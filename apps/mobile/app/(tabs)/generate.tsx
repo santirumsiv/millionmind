@@ -34,6 +34,7 @@ import { useProfile, tierLabel } from "@/lib/queries";
 import { BANNER_AD_UNIT_ID, claimRewardedBonus, showRewardedAd } from "@/lib/ads";
 import { PowerballNumber } from "@/components/PowerballNumber";
 import { DisclaimerFooter } from "@/components/DisclaimerFooter";
+import { track, trackFirstGenerationOnce } from "@/lib/analytics";
 
 export default function GenerateScreen() {
   const insets = useSafeAreaInsets();
@@ -74,10 +75,20 @@ export default function GenerateScreen() {
     setError(null);
     setPending(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    track({
+      name: "generation_requested",
+      algorithm: active,
+      game: "powerball",
+      set_count: 1,
+      tier,
+    });
     try {
       const res = await generateNumbers(active);
       setResult(res);
       revealNumbers();
+      if (profile?.id) {
+        void trackFirstGenerationOnce(profile.id, active, "powerball");
+      }
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       if (e instanceof ApiCallError) {
@@ -105,6 +116,7 @@ export default function GenerateScreen() {
         );
         return;
       }
+      track({ name: "rewarded_ad_completed" });
       Alert.alert(
         "+1 generation unlocked",
         `${result.remainingBonusUses} ad bonus ${result.remainingBonusUses === 1 ? "use" : "uses"} left this week.`,
@@ -138,8 +150,17 @@ export default function GenerateScreen() {
             return (
               <Pressable
                 key={id}
-                onPress={() => unlocked && setActive(id)}
-                disabled={!unlocked}
+                onPress={() => {
+                  if (unlocked) {
+                    setActive(id);
+                  } else {
+                    track({
+                      name: "tier_locked_hit",
+                      feature: "algorithm_card",
+                      attempted_algorithm: id,
+                    });
+                  }
+                }}
                 className={`border p-4 ${
                   isActive
                     ? "border-gold bg-bg-panel"
@@ -210,7 +231,12 @@ export default function GenerateScreen() {
           <View className="mt-5 border border-warn bg-bg p-4">
             <Text className="text-warn text-[13px]">{error}</Text>
             {error.toLowerCase().includes("tier") ? (
-              <Pressable onPress={() => router.push("/(tabs)/account")}>
+              <Pressable
+                onPress={() => {
+                  track({ name: "upgrade_cta_clicked", source: "generate" });
+                  router.push("/(tabs)/account");
+                }}
+              >
                 <Text className="font-mono text-[10px] uppercase tracking-[2px] text-gold mt-2">
                   Upgrade your tier →
                 </Text>

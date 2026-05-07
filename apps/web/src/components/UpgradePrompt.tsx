@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { PRO_BILLING, TIERS } from "@millionmind/shared";
+import { track, type AnalyticsEvent } from "@/lib/analytics";
+
+type UpgradeSource = Extract<
+  AnalyticsEvent,
+  { name: "upgrade_cta_clicked" }
+>["source"];
 
 interface UpgradePromptProps {
   /** What the user is trying to access. e.g. "the Powerball heatmap". */
@@ -9,6 +15,8 @@ interface UpgradePromptProps {
   /** Optional one-line context. */
   detail?: string;
   variant?: "block" | "inline";
+  /** Where in the app this prompt appears — fed into upgrade_cta_clicked. */
+  source: UpgradeSource;
 }
 
 /**
@@ -20,7 +28,10 @@ export function UpgradePrompt({
   feature,
   detail,
   variant = "block",
+  source,
 }: UpgradePromptProps) {
+  const onClick = () => track({ name: "upgrade_cta_clicked", source });
+
   if (variant === "inline") {
     return (
       <div className="inline-flex items-center gap-3 border border-gold-deep bg-bg-elevated/40 px-4 py-2.5">
@@ -29,7 +40,11 @@ export function UpgradePrompt({
         </span>
         <span className="text-ink-soft text-[13px]">
           {feature} ·{" "}
-          <Link href="/sign-up" className="text-gold hover:text-gold-bright">
+          <Link
+            href="/sign-up"
+            onClick={onClick}
+            className="text-gold hover:text-gold-bright"
+          >
             Unlock for ${TIERS.pro.priceMonthlyUsd.toFixed(2)}/mo
           </Link>
         </span>
@@ -53,12 +68,14 @@ export function UpgradePrompt({
       <div className="flex flex-wrap gap-3 mt-3">
         <Link
           href="/sign-up"
+          onClick={onClick}
           className="inline-block bg-gold text-bg font-mono text-[11px] uppercase tracking-[0.2em] px-6 py-3 hover:bg-gold-bright transition-colors"
         >
           Unlock Pro · ${TIERS.pro.priceMonthlyUsd.toFixed(2)}/mo
         </Link>
         <Link
           href="/sign-up"
+          onClick={onClick}
           className="inline-block border border-gold-deep text-gold font-mono text-[11px] uppercase tracking-[0.2em] px-6 py-3 hover:border-gold transition-colors"
         >
           Save with annual · ${PRO_BILLING.annual.priceUsd}/yr

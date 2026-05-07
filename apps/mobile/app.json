@@ -32,7 +32,10 @@
         "backgroundColor": "#0a0e0f"
       },
       "permissions": [],
-      "blockedPermissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "blockedPermissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -65,7 +68,8 @@
             "ydx93a7ass.skadnetwork"
           ]
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

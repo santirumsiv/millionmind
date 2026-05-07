@@ -10,6 +10,10 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { COLORS } from "@millionmind/shared";
 import { useAuthStore } from "@/stores/auth";
+import { initAnalytics } from "@/lib/analytics";
+
+// Run once on module load — Sentry needs to be live before the first error.
+initAnalytics();
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 

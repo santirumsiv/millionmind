@@ -15,6 +15,7 @@ import {
 } from "@/lib/queries";
 import { PowerballRow } from "@/components/PowerballRow";
 import { DisclaimerFooter } from "@/components/DisclaimerFooter";
+import { track } from "@/lib/analytics";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -139,7 +140,10 @@ export default function HomeScreen() {
 
             {!isPro && olderCombosCount > 0 ? (
               <Pressable
-                onPress={() => router.push("/(app)/subscribe")}
+                onPress={() => {
+                  track({ name: "upgrade_cta_clicked", source: "home" });
+                  router.push("/(app)/subscribe");
+                }}
                 className="border border-gold-deep bg-bg-elevated/40 p-4 active:border-gold"
               >
                 <Text className="text-ink-soft text-[13px]">

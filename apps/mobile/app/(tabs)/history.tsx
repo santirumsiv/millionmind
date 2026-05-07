@@ -111,6 +111,7 @@ export default function HistoryScreen() {
             <UpgradePrompt
               feature="See every drawing back to 2010"
               detail={`You've reached the Free-tier limit of ${FREE_LIMITS.drawingsHistory} most recent drawings.`}
+              source="history"
             />
           </View>
         ) : drawings && drawings.length === limit ? (

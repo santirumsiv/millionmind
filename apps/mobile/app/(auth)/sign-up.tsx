@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import { DISCLAIMER_SHORT } from "@millionmind/shared";
 import { supabase } from "@/lib/supabase";
 import { signInWithApple, signInWithGoogle } from "@/lib/auth-providers";
+import { checkGeoEligibility, type GeoCheckResult } from "@/lib/geo";
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
@@ -23,8 +24,17 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [geo, setGeo] = useState<GeoCheckResult | null>(null);
+
+  useEffect(() => {
+    void checkGeoEligibility().then(setGeo);
+  }, []);
+
+  const checking = geo === null;
+  const blocked = geo?.blocked === true;
 
   async function onEmailSignUp() {
+    if (blocked) return;
     setError(null);
     setInfo(null);
     setLoading(true);
@@ -38,6 +48,7 @@ export default function SignUpScreen() {
   }
 
   async function onApple() {
+    if (blocked) return;
     try {
       await signInWithApple();
     } catch (e) {
@@ -46,6 +57,7 @@ export default function SignUpScreen() {
   }
 
   async function onGoogle() {
+    if (blocked) return;
     const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
     const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
     try {
@@ -71,6 +83,18 @@ export default function SignUpScreen() {
         Free Explorer tier — 3 random combinations weekly. Upgrade any time.
       </Text>
 
+      {blocked ? (
+        <View className="border border-warn bg-bg-elevated p-5 mb-6">
+          <Text className="font-mono text-[10px] uppercase tracking-[2px] text-warn mb-2">
+            Region restricted
+          </Text>
+          <Text className="text-ink-soft text-[13px] leading-relaxed">
+            {geo?.message ??
+              "Million Mind is not currently available in your region."}
+          </Text>
+        </View>
+      ) : null}
+
       <View className="gap-3 mb-5">
         <TextInput
           value={email}
@@ -80,6 +104,7 @@ export default function SignUpScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
+          editable={!blocked && !checking}
           className="border border-rule bg-bg-elevated text-ink px-4 py-4"
         />
         <TextInput
@@ -89,6 +114,7 @@ export default function SignUpScreen() {
           placeholderTextColor="#6b6960"
           secureTextEntry
           autoComplete="new-password"
+          editable={!blocked && !checking}
           className="border border-rule bg-bg-elevated text-ink px-4 py-4"
         />
       </View>
@@ -98,14 +124,14 @@ export default function SignUpScreen() {
 
       <Pressable
         onPress={onEmailSignUp}
-        disabled={loading || !email || password.length < 8}
+        disabled={loading || blocked || checking || !email || password.length < 8}
         className="bg-gold py-4 mb-3 active:bg-gold-bright disabled:opacity-50"
       >
         {loading ? (
           <ActivityIndicator color="#0a0e0f" />
         ) : (
           <Text className="text-center font-mono text-[11px] tracking-[3px] uppercase text-bg font-semibold">
-            Create account
+            {checking ? "Checking availability…" : "Create account"}
           </Text>
         )}
       </Pressable>
@@ -118,7 +144,7 @@ export default function SignUpScreen() {
         <View className="flex-1 h-px bg-rule" />
       </View>
 
-      {Platform.OS === "ios" ? (
+      {Platform.OS === "ios" && !blocked && !checking ? (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
           buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
@@ -130,7 +156,8 @@ export default function SignUpScreen() {
 
       <Pressable
         onPress={onGoogle}
-        className="border border-rule py-4 mb-6 active:bg-bg-elevated"
+        disabled={blocked || checking}
+        className="border border-rule py-4 mb-6 active:bg-bg-elevated disabled:opacity-50"
       >
         <Text className="text-center font-mono text-[11px] tracking-[3px] uppercase text-ink">
           Continue with Google

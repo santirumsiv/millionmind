@@ -24,6 +24,7 @@ import {
   setNotificationsEnabled,
 } from "@/lib/push";
 import { DisclaimerFooter } from "@/components/DisclaimerFooter";
+import { track } from "@/lib/analytics";
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
@@ -65,6 +66,7 @@ export default function AccountScreen() {
         }
       }
       await setNotificationsEnabled(value);
+      track({ name: "notifications_enabled_toggled", enabled: value });
       await refetchProfile();
     } finally {
       setPushSaving(false);
@@ -197,7 +199,10 @@ export default function AccountScreen() {
                     {t.features[0]}
                   </Text>
                   <Pressable
-                    onPress={() => router.push("/(app)/subscribe")}
+                    onPress={() => {
+                      track({ name: "upgrade_cta_clicked", source: "account" });
+                      router.push("/(app)/subscribe");
+                    }}
                     className="border border-gold-deep py-3 active:border-gold"
                   >
                     <Text className="text-center font-mono text-[10px] uppercase tracking-[2px] text-gold">

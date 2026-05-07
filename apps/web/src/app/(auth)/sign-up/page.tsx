@@ -1,14 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { DISCLAIMER_SHORT } from "@millionmind/shared";
 import { signUpWithEmail } from "../actions";
+import { checkGeoEligibility, type GeoCheckResult } from "@/lib/geo";
 
 export default function SignUpPage() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [geo, setGeo] = useState<GeoCheckResult | null>(null);
+
+  useEffect(() => {
+    void checkGeoEligibility().then(setGeo);
+  }, []);
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -19,6 +25,9 @@ export default function SignUpPage() {
       else if (result.info) setInfo(result.info);
     });
   }
+
+  const checking = geo === null;
+  const blocked = geo?.blocked === true;
 
   return (
     <main className="page-content max-w-md mx-auto px-6 py-24">
@@ -32,6 +41,18 @@ export default function SignUpPage() {
         Free Explorer tier — 3 random combinations weekly. Upgrade any time.
       </p>
 
+      {blocked ? (
+        <div className="border border-warn bg-bg-elevated p-6 mb-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-warn mb-2">
+            Region restricted
+          </p>
+          <p className="text-ink-soft text-[14px] leading-relaxed">
+            {geo?.message ??
+              "Million Mind is not currently available in your region."}
+          </p>
+        </div>
+      ) : null}
+
       <form action={onSubmit} className="space-y-3 mb-3">
         <input
           name="email"
@@ -39,7 +60,8 @@ export default function SignUpPage() {
           required
           placeholder="Email"
           autoComplete="email"
-          className="w-full bg-bg-elevated border border-rule text-ink px-4 py-4 placeholder:text-ink-faint outline-none focus:border-gold-deep"
+          disabled={blocked || checking}
+          className="w-full bg-bg-elevated border border-rule text-ink px-4 py-4 placeholder:text-ink-faint outline-none focus:border-gold-deep disabled:opacity-50"
         />
         <input
           name="password"
@@ -48,7 +70,8 @@ export default function SignUpPage() {
           minLength={8}
           placeholder="Password (min 8 characters)"
           autoComplete="new-password"
-          className="w-full bg-bg-elevated border border-rule text-ink px-4 py-4 placeholder:text-ink-faint outline-none focus:border-gold-deep"
+          disabled={blocked || checking}
+          className="w-full bg-bg-elevated border border-rule text-ink px-4 py-4 placeholder:text-ink-faint outline-none focus:border-gold-deep disabled:opacity-50"
         />
 
         {error ? <p className="text-warn text-sm">{error}</p> : null}
@@ -56,10 +79,14 @@ export default function SignUpPage() {
 
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || blocked || checking}
           className="w-full bg-gold text-bg font-mono text-[11px] uppercase tracking-[0.2em] py-4 hover:bg-gold-bright disabled:opacity-50 transition-colors"
         >
-          {pending ? "Creating account…" : "Create account"}
+          {checking
+            ? "Checking availability…"
+            : pending
+              ? "Creating account…"
+              : "Create account"}
         </button>
       </form>
 

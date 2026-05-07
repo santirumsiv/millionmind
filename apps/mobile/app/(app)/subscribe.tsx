@@ -18,6 +18,7 @@ import {
   restorePurchases,
 } from "@/lib/revenuecat";
 import { useAuthStore } from "@/stores/auth";
+import { track } from "@/lib/analytics";
 
 export default function SubscribeScreen() {
   const insets = useSafeAreaInsets();
@@ -51,6 +52,14 @@ export default function SubscribeScreen() {
       const info = await purchase(pkg);
       const newTier = highestTierFromCustomerInfo(info);
       await refreshTier();
+      // RevenueCat package identifiers follow the convention `<tier>_<period>`,
+      // e.g. `pro_monthly` / `pro_annual`. Fall back to "monthly" if unclear.
+      const variant: "monthly" | "annual" = pkg.identifier
+        .toLowerCase()
+        .includes("annual")
+        ? "annual"
+        : "monthly";
+      track({ name: "subscription_started", variant });
       Alert.alert(
         "Welcome",
         `You are now on the ${TIERS[newTier].name} tier.`,

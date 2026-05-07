@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { track } from "@/lib/analytics";
 import {
   Bar,
   BarChart,
@@ -207,6 +208,7 @@ export default function DemoPage() {
           </div>
           <Link
             href="/sign-up"
+            onClick={() => track({ name: "upgrade_cta_clicked", source: "demo" })}
             className="bg-gold text-bg font-mono text-[10px] uppercase tracking-[0.2em] px-5 py-3 hover:bg-gold-bright transition-colors whitespace-nowrap"
           >
             Unlock Pro · ${TIERS.pro.priceMonthlyUsd.toFixed(2)}/mo
@@ -360,8 +362,17 @@ export default function DemoPage() {
                   <button
                     key={id}
                     type="button"
-                    onClick={() => unlocked && setActive(id)}
-                    disabled={!unlocked}
+                    onClick={() => {
+                      if (unlocked) {
+                        setActive(id);
+                      } else {
+                        track({
+                          name: "tier_locked_hit",
+                          feature: "demo_algorithm_card",
+                          attempted_algorithm: id,
+                        });
+                      }
+                    }}
                     className={`text-left p-5 border transition-all relative ${
                       !unlocked
                         ? "border-rule-soft bg-bg-elevated/40 opacity-60 cursor-not-allowed"

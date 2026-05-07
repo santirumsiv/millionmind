@@ -13,6 +13,7 @@ import {
 import { generateNumbers, ApiCallError } from "@/lib/api";
 import { useProfile, tierLabel } from "@/lib/queries";
 import { PowerballRow } from "@/components/PowerballRow";
+import { track, trackFirstGenerationOnce } from "@/lib/analytics";
 
 export default function GeneratePage() {
   const { data: profile } = useProfile();
@@ -26,9 +27,19 @@ export default function GeneratePage() {
     setPending(true);
     setError(null);
     setResult(null);
+    track({
+      name: "generation_requested",
+      algorithm: active,
+      game: "powerball",
+      set_count: 1,
+      tier,
+    });
     try {
       const res = await generateNumbers(active);
       setResult(res);
+      if (profile?.id) {
+        trackFirstGenerationOnce(profile.id, active, "powerball");
+      }
     } catch (e) {
       if (e instanceof ApiCallError) {
         setError(e.detail.message);
@@ -63,7 +74,17 @@ export default function GeneratePage() {
             <button
               key={id}
               type="button"
-              onClick={() => unlocked && setActive(id)}
+              onClick={() => {
+                if (unlocked) {
+                  setActive(id);
+                } else {
+                  track({
+                    name: "tier_locked_hit",
+                    feature: "algorithm_card",
+                    attempted_algorithm: id,
+                  });
+                }
+              }}
               className={`text-left p-5 border transition-colors ${
                 isActive
                   ? "border-gold bg-bg-panel"
@@ -72,7 +93,7 @@ export default function GeneratePage() {
                     : "border-rule-soft bg-bg-elevated opacity-50 cursor-not-allowed"
               }`}
               aria-pressed={isActive}
-              disabled={!unlocked}
+              aria-disabled={!unlocked}
             >
               <div className="flex items-baseline justify-between gap-3 mb-1">
                 <span className="font-display text-[20px] text-ink leading-tight">

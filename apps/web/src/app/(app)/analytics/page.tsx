@@ -144,6 +144,7 @@ export default function AnalyticsPage() {
           <UpgradePrompt
             feature="Hot 10 / Cold 10 with bar charts"
             detail="Pro tier shows the full top-10 ranked lists for both ends, visualized as charts you can hover."
+            source="analytics"
           />
         </section>
       )}
@@ -165,6 +166,7 @@ export default function AnalyticsPage() {
           <UpgradePrompt
             feature="Powerball heatmap (1–26)"
             detail="The special-ball heatmap is the second most-used view. Pro unlocks both."
+            source="analytics"
           />
         </section>
       )}
@@ -200,6 +202,7 @@ export default function AnalyticsPage() {
           <UpgradePrompt
             feature="Sum-distribution histogram"
             detail="See how the 5-ball sum clusters around the historical mean. Used by Pattern-Balanced and Monte Carlo to score combinations."
+            source="analytics"
           />
         </section>
       )}
@@ -254,6 +257,7 @@ export default function AnalyticsPage() {
           <UpgradePrompt
             feature="Top co-occurring number pairs"
             detail="See which numbers have appeared together most often across the full historical dataset. Pro unlocks the top 25 pairs across both games."
+            source="analytics"
           />
         </section>
       )}

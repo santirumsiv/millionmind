@@ -106,6 +106,7 @@ export default function HistoryPage() {
         <UpgradePrompt
           feature="See every drawing back to 2010"
           detail={`You've reached the Free-tier limit of ${FREE_LIMITS.drawingsHistory} most recent drawings. Pro unlocks the full archive across both Powerball and Mega Millions.`}
+          source="history"
         />
       ) : drawings && drawings.length === limit && limit < maxLoadable ? (
         <button
