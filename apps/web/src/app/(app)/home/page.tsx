@@ -1,36 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { GAMES, TIERS } from "@millionmind/shared";
+import { useEffect, useState } from "react";
+import { GAMES } from "@millionmind/shared";
 import {
-  FREE_LIMITS,
-  daysAgoIso,
-  useMyCombinations,
-  useProfile,
-  useRecentDrawings,
-  useUsageThisWeek,
-  tierLabel,
+  readLocalHistory,
+  useDrawings,
+  useQuota,
+  type LocalGenerationEntry,
 } from "@/lib/queries";
 import { PowerballRow } from "@/components/PowerballRow";
-import { track } from "@/lib/analytics";
 
 export default function HomePage() {
-  const { data: profile } = useProfile();
-  const { data: usage } = useUsageThisWeek();
-  const { data: combos } = useMyCombinations(20);
-  const { data: drawings } = useRecentDrawings(1);
-  const lastDraw = drawings?.[0];
+  const { data: quota } = useQuota();
+  const { data: pbDrawings } = useDrawings("powerball", 1);
+  const lastDraw = pbDrawings?.rows[0];
 
-  const tier = profile?.tier ?? "free";
-  const isPro = tier === "pro";
-  const cap = TIERS[tier].weeklyGenerationCap;
-  const remaining = cap === "unlimited" ? "unlimited" : Math.max(0, cap - (usage?.count ?? 0));
-
-  // Free tier sees only the last 7 days of their generation history.
-  const visibleCombos = (combos ?? []).filter((c) =>
-    isPro ? true : c.created_at >= daysAgoIso(FREE_LIMITS.myGenerationsDays),
-  ).slice(0, 3);
-  const olderCombosCount = (combos ?? []).length - visibleCombos.length;
+  const [history, setHistory] = useState<LocalGenerationEntry[]>([]);
+  useEffect(() => {
+    setHistory(readLocalHistory().slice(0, 3));
+  }, []);
 
   const next = nextDrawingDate();
 
@@ -38,15 +27,13 @@ export default function HomePage() {
     <main className="space-y-12">
       <section>
         <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold mb-3">
-          ◆ {tierLabel(tier)} tier
+          ◆ Welcome
         </p>
         <h1 className="font-display text-[44px] md:text-[56px] leading-[1.05] text-ink mb-3">
-          Welcome.
+          Lottery analytics, free.
         </h1>
         <p className="text-ink-soft text-[15px] leading-relaxed max-w-[60ch] mb-8">
-          {remaining === "unlimited"
-            ? "Unlimited generations this week."
-            : `${remaining} of ${cap} generations remaining this week.`}
+          5 free generations per 5-minute window. Watch an ad to unlock 8 premium algorithms across Powerball and Mega Millions. No accounts. No subscriptions. For entertainment only.
         </p>
 
         <Link
@@ -60,7 +47,7 @@ export default function HomePage() {
       <section className="grid md:grid-cols-2 gap-6">
         <div className="border border-rule bg-bg-elevated p-6">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold mb-4">
-            Next drawing
+            Next Powerball drawing
           </p>
           <p className="font-display text-[28px] text-ink leading-tight mb-2">
             {next.weekday}
@@ -73,7 +60,7 @@ export default function HomePage() {
         <div className="border border-rule bg-bg-elevated p-6">
           <div className="flex items-baseline justify-between mb-4">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
-              Last drawing
+              Last Powerball
             </p>
             <a
               href={GAMES.powerball.officialResultsUrl}
@@ -86,9 +73,7 @@ export default function HomePage() {
           </div>
           {lastDraw ? (
             <>
-              <p className="font-mono text-[12px] text-ink-soft mb-3">
-                {lastDraw.draw_date}
-              </p>
+              <p className="font-mono text-[12px] text-ink-soft mb-3">{lastDraw.draw_date}</p>
               <PowerballRow
                 whiteBalls={[lastDraw.n1, lastDraw.n2, lastDraw.n3, lastDraw.n4, lastDraw.n5]}
                 powerball={lastDraw.powerball}
@@ -96,53 +81,44 @@ export default function HomePage() {
               />
             </>
           ) : (
-            <p className="text-ink-faint text-sm">Load drawings to see results.</p>
+            <p className="text-ink-faint text-sm">Loading…</p>
           )}
         </div>
+      </section>
+
+      <section className="border border-rule bg-bg-elevated p-6 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">Quota</span>
+        <span className="font-mono text-[12px] text-ink-soft">
+          Free this 5-min: <span className="text-ink">{quota?.free_remaining ?? "—"}/5</span>
+        </span>
+        <span className="font-mono text-[12px] text-ink-soft">
+          Premium uses left: <span className="text-gold">{quota?.premium_uses ?? 0}</span>
+        </span>
       </section>
 
       <section>
         <div className="flex items-baseline justify-between mb-4">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
-            Recent generations
+            Your recent generations
           </p>
-          {!isPro ? (
-            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
-              Free · last {FREE_LIMITS.myGenerationsDays} days
-            </p>
-          ) : null}
+          <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
+            Stored on this device only
+          </p>
         </div>
-
-        {visibleCombos.length > 0 ? (
+        {history.length > 0 ? (
           <div className="space-y-3">
-            {visibleCombos.map((c) => (
+            {history.map((c, idx) => (
               <div
-                key={c.id}
+                key={`${c.generated_at}-${idx}`}
                 className="border border-rule bg-bg-elevated p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
               >
                 <PowerballRow whiteBalls={c.white_balls} powerball={c.powerball} size="sm" />
                 <div className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
-                  {c.algorithm_used.replace("_", " ")} ·{" "}
-                  {new Date(c.created_at).toLocaleDateString()}
+                  {c.algorithm.replace("_", " ")} · {GAMES[c.game].name} ·{" "}
+                  {new Date(c.generated_at).toLocaleDateString()}
                 </div>
               </div>
             ))}
-
-            {!isPro && olderCombosCount > 0 ? (
-              <div className="border border-gold-deep bg-bg-elevated/40 p-4 flex flex-wrap items-center justify-between gap-3">
-                <span className="text-ink-soft text-[13px]">
-                  🔒 {olderCombosCount} older{" "}
-                  {olderCombosCount === 1 ? "generation" : "generations"} hidden — Pro keeps your full history.
-                </span>
-                <Link
-                  href="/account"
-                  onClick={() => track({ name: "upgrade_cta_clicked", source: "home" })}
-                  className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold hover:text-gold-bright"
-                >
-                  Upgrade →
-                </Link>
-              </div>
-            ) : null}
           </div>
         ) : (
           <div className="border border-rule bg-bg-elevated p-6">
@@ -162,7 +138,7 @@ export default function HomePage() {
 
 function nextDrawingDate(): { weekday: string; date: string } {
   // Powerball draws Mon, Wed, Sat at 22:59 ET.
-  const drawDays = [1, 3, 6]; // Mon, Wed, Sat
+  const drawDays = [1, 3, 6];
   const now = new Date();
   for (let i = 0; i < 7; i++) {
     const candidate = new Date(now);

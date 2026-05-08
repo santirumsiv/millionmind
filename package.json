@@ -1,8 +1,8 @@
 {
   "name": "millionmind",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Million Mind — Powerball statistics & entertainment platform (mobile + web + single Supabase backend)",
+  "description": "Million Mind — Powerball & Mega Millions statistics, web-only ad-driven entertainment platform.",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -14,13 +14,7 @@
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rimraf node_modules",
     "web": "turbo run dev --filter=@millionmind/web",
-    "mobile": "turbo run dev --filter=@millionmind/mobile",
-    "db:reset": "supabase db reset",
-    "db:seed": "psql \"$DATABASE_URL\" -f supabase/seed/dev_seed.sql",
-    "db:seed:full": "psql \"$DATABASE_URL\" -f supabase/seed/full_history.sql",
-    "db:import-csv": "node supabase/scripts/import_csv.mjs",
-    "db:load-history": "python supabase/scripts/load_powerball_history.py",
-    "db:refresh": "python supabase/scripts/refresh_recent.py"
+    "data:refresh": "node scripts/refresh-drawings.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

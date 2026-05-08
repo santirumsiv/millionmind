@@ -1,125 +1,152 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { createSupabaseBrowserClient } from "./supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
-  Drawing,
-  GeneratedCombination,
-  NumberStats,
-  Profile,
-  TierId,
+  AlgorithmId,
+  GameId,
+  Combination,
+  DrawingRow,
+  NumberStat,
 } from "@millionmind/shared";
 
-export function useProfile() {
-  const supabase = createSupabaseBrowserClient();
-  return useQuery({
-    queryKey: ["profile"],
-    queryFn: async (): Promise<Profile | null> => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      if (error) throw error;
-      return data as Profile;
+export interface QuotaState {
+  free_remaining: number;
+  free_reset_in: number;
+  premium_uses: number;
+  grants_used_this_hour: number;
+  grants_remaining_this_hour: number;
+}
+
+export interface GenerateResult extends Combination {
+  algorithm: AlgorithmId;
+  game: GameId;
+  generated_at: string;
+  quota: QuotaState;
+  disclaimer: string;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  quota?: QuotaState;
+}
+
+export class ApiCallError extends Error {
+  constructor(public detail: ApiError, public status: number) {
+    super(detail.message);
+    this.name = "ApiCallError";
+  }
+}
+
+async function asJson<T>(res: Response): Promise<T> {
+  const body = await res.json();
+  if (!res.ok) throw new ApiCallError(body as ApiError, res.status);
+  return body as T;
+}
+
+// ─── Quota ─────────────────────────────────────────────────────────
+
+export function useQuota() {
+  return useQuery<QuotaState>({
+    queryKey: ["quota"],
+    queryFn: async () => asJson<QuotaState>(await fetch("/api/quota")),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+}
+
+// ─── Generate ──────────────────────────────────────────────────────
+
+export function useGenerate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { algorithm: AlgorithmId; game: GameId }) =>
+      asJson<GenerateResult>(
+        await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(vars),
+        }),
+      ),
+    onSuccess: (res) => {
+      qc.setQueryData(["quota"], res.quota);
     },
   });
 }
 
-export function useUsageThisWeek() {
-  const supabase = createSupabaseBrowserClient();
-  return useQuery({
-    queryKey: ["usage"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { count: 0 };
-      const weekStart = isoMondayUtc();
-      const { data } = await supabase
-        .from("usage_limits")
-        .select("generations_count")
-        .eq("user_id", user.id)
-        .eq("week_start", weekStart)
-        .maybeSingle();
-      return { count: data?.generations_count ?? 0 };
+// ─── Ad-grant ──────────────────────────────────────────────────────
+
+export function useAdGrant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      asJson<{ granted: number; quota: QuotaState }>(
+        await fetch("/api/ad-grant", { method: "POST" }),
+      ),
+    onSuccess: (res) => {
+      qc.setQueryData(["quota"], res.quota);
     },
   });
 }
 
-export function useRecentDrawings(limit = 30) {
-  const supabase = createSupabaseBrowserClient();
-  return useQuery({
-    queryKey: ["drawings", "recent", limit],
-    queryFn: async (): Promise<Drawing[]> => {
-      const { data, error } = await supabase
-        .from("drawings")
-        .select("*")
-        .order("draw_date", { ascending: false })
-        .limit(limit);
-      if (error) throw error;
-      return (data ?? []) as Drawing[];
-    },
+// ─── Stats ─────────────────────────────────────────────────────────
+
+export interface StatsResponse {
+  game: GameId;
+  total_drawings: number;
+  stats: NumberStat[];
+  top_pairs: Array<{ a: number; b: number; count: number }>;
+}
+
+export function useStats(game: GameId) {
+  return useQuery<StatsResponse>({
+    queryKey: ["stats", game],
+    queryFn: async () => asJson<StatsResponse>(await fetch(`/api/stats?game=${game}`)),
     staleTime: 5 * 60_000,
   });
 }
 
-export function useNumberStats() {
-  const supabase = createSupabaseBrowserClient();
-  return useQuery({
-    queryKey: ["numberStats"],
-    queryFn: async (): Promise<NumberStats[]> => {
-      const { data, error } = await supabase.from("number_stats").select("*");
-      if (error) throw error;
-      return (data ?? []) as NumberStats[];
-    },
-    staleTime: 60_000,
+// ─── Drawings ──────────────────────────────────────────────────────
+
+export interface DrawingsResponse {
+  game: GameId;
+  total_drawings: number;
+  rows: DrawingRow[];
+}
+
+export function useDrawings(game: GameId, limit = 30) {
+  return useQuery<DrawingsResponse>({
+    queryKey: ["drawings", game, limit],
+    queryFn: async () =>
+      asJson<DrawingsResponse>(await fetch(`/api/drawings?game=${game}&limit=${limit}`)),
+    staleTime: 5 * 60_000,
   });
 }
 
-export function useMyCombinations(limit = 30) {
-  const supabase = createSupabaseBrowserClient();
-  return useQuery({
-    queryKey: ["myCombinations", limit],
-    queryFn: async (): Promise<GeneratedCombination[]> => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from("generated_combinations")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(limit);
-      if (error) throw error;
-      return (data ?? []) as GeneratedCombination[];
-    },
-  });
+// ─── Per-device generation history (localStorage only) ─────────────
+
+const HISTORY_KEY = "mm:generation_history";
+const HISTORY_MAX = 50;
+
+export interface LocalGenerationEntry extends Combination {
+  algorithm: AlgorithmId;
+  game: GameId;
+  generated_at: string;
 }
 
-function isoMondayUtc(): string {
-  const d = new Date();
-  const day = d.getUTCDay() || 7;
-  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 1));
-  return monday.toISOString().slice(0, 10);
+export function readLocalHistory(): LocalGenerationEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    return raw ? (JSON.parse(raw) as LocalGenerationEntry[]) : [];
+  } catch {
+    return [];
+  }
 }
 
-export function tierLabel(tier: TierId): string {
-  return tier === "pro" ? "Pro" : "Explorer";
-}
-
-/**
- * Free tier limits — derived from BUSINESS_ANALYSIS.md restriction matrix.
- * These are UI-side; the server-side weekly cap is enforced separately
- * in the generate-numbers Edge Function.
- */
-export const FREE_LIMITS = {
-  drawingsHistory: 30,
-  myGenerationsDays: 7,
-} as const;
-
-/** Compute the cutoff ISO date for "last N days" filtering. */
-export function daysAgoIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString();
+export function appendLocalHistory(entry: LocalGenerationEntry): void {
+  if (typeof window === "undefined") return;
+  const current = readLocalHistory();
+  const next = [entry, ...current].slice(0, HISTORY_MAX);
+  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
 }

@@ -1,0 +1,40 @@
+name: refresh-drawings
+
+# Pulls the latest Powerball + Mega Millions drawings from NY State Open
+# Data, regenerates apps/web/data/*.json, commits if anything changed,
+# and pushes — Vercel auto-redeploys on push.
+
+on:
+  schedule:
+    # Daily at 12:00 UTC (07:00 ET / 04:00 PT). Drawings happen overnight,
+    # this catches them before US users are likely to look.
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}  # manual trigger via Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Refresh JSON
+        run: node scripts/refresh-drawings.mjs
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/data
+          if git diff --staged --quiet; then
+            echo "No changes — nothing to commit."
+          else
+            git commit -m "data: refresh drawings $(date -u +%Y-%m-%d)"
+            git push
+          fi

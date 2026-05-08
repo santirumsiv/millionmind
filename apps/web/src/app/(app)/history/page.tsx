@@ -1,80 +1,73 @@
 "use client";
 
 import { useState } from "react";
-import {
-  GAMES,
-  GAME_IDS,
-  drawingsToCsv,
-  todayStampedFilename,
-} from "@millionmind/shared";
-import { FREE_LIMITS, useProfile, useRecentDrawings } from "@/lib/queries";
+import { GAMES, GAME_IDS, type GameId } from "@millionmind/shared";
+import { useDrawings } from "@/lib/queries";
 import { PowerballRow } from "@/components/PowerballRow";
-import { UpgradePrompt } from "@/components/UpgradePrompt";
-import { downloadCsv } from "@/lib/download";
+
+const PAGE_SIZE = 50;
+const HARD_LIMIT = 200;
 
 export default function HistoryPage() {
-  const { data: profile } = useProfile();
-  const isPro = profile?.tier === "pro";
-  const maxLoadable = isPro ? Infinity : FREE_LIMITS.drawingsHistory;
-
-  const [limit, setLimit] = useState(isPro ? 50 : FREE_LIMITS.drawingsHistory);
-  const { data: drawings, isLoading } = useRecentDrawings(limit);
-
-  function onExport() {
-    if (!drawings || !isPro) return;
-    downloadCsv(drawingsToCsv(drawings), todayStampedFilename("powerball_drawings"));
-  }
+  const [game, setGame] = useState<GameId>("powerball");
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const { data, isLoading } = useDrawings(game, limit);
 
   return (
     <main className="space-y-10">
       <section>
-        <div className="flex justify-between items-start gap-4 flex-wrap">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold mb-3">
-              § History
-            </p>
-            <h1 className="font-display text-[44px] leading-[1.05] text-ink mb-3">
-              Past drawings.
-            </h1>
-            <p className="text-ink-soft text-[15px] leading-relaxed max-w-[60ch]">
-              {isPro
-                ? "Every Powerball and Mega Millions drawing back to 2010, refreshed automatically from official feeds every 4 hours."
-                : `Free tier shows the last ${FREE_LIMITS.drawingsHistory} drawings. Upgrade for the full historical archive.`}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
-              {GAME_IDS.map((id) => (
-                <a
-                  key={id}
-                  href={GAMES[id].officialResultsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint hover:text-gold"
-                >
-                  Latest {GAMES[id].name} on official site ↗
-                </a>
-              ))}
-            </div>
-          </div>
-          {isPro && drawings && drawings.length > 0 ? (
-            <button
-              type="button"
-              onClick={onExport}
-              className="border border-gold-deep text-gold font-mono text-[10px] uppercase tracking-[0.2em] px-5 py-3 hover:border-gold transition-colors whitespace-nowrap"
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-gold mb-3">
+          § History
+        </p>
+        <h1 className="font-display text-[44px] leading-[1.05] text-ink mb-3">
+          Past drawings.
+        </h1>
+        <p className="text-ink-soft text-[15px] leading-relaxed max-w-[60ch]">
+          Powerball and Mega Millions drawings refreshed daily from official feeds. Up to {HARD_LIMIT} most-recent drawings shown.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+          {GAME_IDS.map((id) => (
+            <a
+              key={id}
+              href={GAMES[id].officialResultsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint hover:text-gold"
             >
-              ↓ Export CSV ({drawings.length})
-            </button>
-          ) : null}
+              Latest {GAMES[id].name} on official site ↗
+            </a>
+          ))}
         </div>
+      </section>
+
+      <section className="flex gap-2">
+        {GAME_IDS.map((g) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => {
+              setGame(g);
+              setLimit(PAGE_SIZE);
+            }}
+            className={`px-4 py-2 border font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
+              game === g
+                ? "border-gold bg-bg-panel text-gold"
+                : "border-rule bg-bg-elevated text-ink-soft hover:border-gold-deep"
+            }`}
+          >
+            {GAMES[g].name}
+          </button>
+        ))}
       </section>
 
       {isLoading ? (
         <p className="text-ink-faint text-sm">Loading drawings…</p>
       ) : (
         <div className="border border-rule bg-bg-elevated divide-y divide-rule">
-          {drawings?.length ? (
-            drawings.map((d) => (
+          {data?.rows?.length ? (
+            data.rows.map((d, idx) => (
               <div
-                key={d.id}
+                key={`${d.draw_date}-${idx}`}
                 className="p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
               >
                 <div className="font-mono text-[12px] tracking-wide text-ink-soft min-w-[120px]">
@@ -86,32 +79,22 @@ export default function HistoryPage() {
                   size="sm"
                 />
                 <div className="font-mono text-[10px] tracking-[0.15em] uppercase text-ink-faint">
-                  {d.multiplier}× multiplier
+                  {GAMES[game].name}
                 </div>
               </div>
             ))
           ) : (
             <div className="p-6">
-              <p className="text-ink-soft text-sm">
-                No drawings loaded yet. Run the loader script (see{" "}
-                <code className="text-gold font-mono text-xs">supabase/README.md</code>).
-              </p>
+              <p className="text-ink-soft text-sm">No drawings available.</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Pagination + free-cap upgrade */}
-      {!isPro && drawings && drawings.length >= FREE_LIMITS.drawingsHistory ? (
-        <UpgradePrompt
-          feature="See every drawing back to 2010"
-          detail={`You've reached the Free-tier limit of ${FREE_LIMITS.drawingsHistory} most recent drawings. Pro unlocks the full archive across both Powerball and Mega Millions.`}
-          source="history"
-        />
-      ) : drawings && drawings.length === limit && limit < maxLoadable ? (
+      {data && data.rows.length === limit && limit < HARD_LIMIT ? (
         <button
           type="button"
-          onClick={() => setLimit((l) => l + 50)}
+          onClick={() => setLimit((l) => Math.min(HARD_LIMIT, l + PAGE_SIZE))}
           className="block mx-auto border border-gold-deep text-gold font-mono text-[10px] uppercase tracking-[0.2em] px-6 py-3 hover:border-gold transition-colors"
         >
           Load more

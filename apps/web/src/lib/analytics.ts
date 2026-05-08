@@ -3,53 +3,30 @@
 import posthog from "posthog-js";
 
 /**
- * Strongly-typed event surface — keep in sync with the mobile wrapper at
- * apps/mobile/src/lib/analytics.ts. The 8 priority events from the launch
- * plan are listed here; add new ones as a discriminated union member.
+ * Analytics events. With the web-only ads-only pivot, the surface is
+ * narrower than before — no auth-tied events, no subscription events.
  */
 export type AnalyticsEvent =
-  | { name: "signup_completed"; provider?: "email" | "apple" | "google" }
   | { name: "first_generation"; algorithm: string; game: string }
   | {
       name: "generation_requested";
       algorithm: string;
       game: string;
-      set_count: number;
-      tier: string;
+      premium: boolean;
     }
-  | {
-      name: "tier_locked_hit";
-      feature: string;
-      attempted_algorithm?: string;
-    }
-  | {
-      name: "upgrade_cta_clicked";
-      source:
-        | "demo"
-        | "analytics"
-        | "history"
-        | "home"
-        | "account"
-        | "generate";
-    }
-  | { name: "subscription_started"; variant: "monthly" | "annual" }
-  | { name: "rewarded_ad_completed" }
-  | { name: "notifications_enabled_toggled"; enabled: boolean };
-
-export type IdentifyProps = {
-  tier?: string;
-  pro_billing_variant?: string;
-  signup_date?: string;
-  auth_provider?: string;
-  notifications_enabled?: boolean;
-};
+  | { name: "quota_exhausted" }
+  | { name: "premium_required"; algorithm: string }
+  | { name: "ad_view_started" }
+  | { name: "ad_view_completed" }
+  | { name: "ad_view_skipped" }
+  | { name: "grant_cap_reached" };
 
 let initialized = false;
 
 export function initAnalytics(): void {
   if (initialized || typeof window === "undefined") return;
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (!key) return; // graceful no-op when not configured
+  if (!key) return;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
   posthog.init(key, {
     api_host: host,
@@ -67,30 +44,11 @@ export function track(event: AnalyticsEvent): void {
   posthog.capture(name, props);
 }
 
-export function identify(userId: string, props: IdentifyProps = {}): void {
-  if (!initialized) return;
-  posthog.identify(userId, props);
-}
+const FIRST_GEN_KEY = "mm:first_generation_seen";
 
-export function resetAnalytics(): void {
-  if (!initialized) return;
-  posthog.reset();
-}
-
-const FIRST_GEN_FLAG = "mm:first_generation_seen";
-
-/**
- * Fire `first_generation` exactly once per device per user. Persists in
- * localStorage; safe across refreshes. Same idea on mobile via AsyncStorage.
- */
-export function trackFirstGenerationOnce(
-  userId: string,
-  algorithm: string,
-  game: string,
-): void {
+export function trackFirstGenerationOnce(algorithm: string, game: string): void {
   if (typeof window === "undefined") return;
-  const key = `${FIRST_GEN_FLAG}:${userId}`;
-  if (window.localStorage.getItem(key)) return;
+  if (window.localStorage.getItem(FIRST_GEN_KEY)) return;
   track({ name: "first_generation", algorithm, game });
-  window.localStorage.setItem(key, "1");
+  window.localStorage.setItem(FIRST_GEN_KEY, "1");
 }
