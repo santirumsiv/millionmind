@@ -16,9 +16,17 @@
 
 import { Redis } from "@upstash/redis";
 
+// Vercel's marketplace Upstash integration injects env vars under the
+// legacy KV_* names (for back-compat with the deprecated @vercel/kv
+// package). A direct Upstash deploy uses the native UPSTASH_* names.
+// Accept either so the same code works in both environments.
+const upstashUrl =
+  process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+const upstashToken =
+  process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
 const kv =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? Redis.fromEnv()
+  upstashUrl && upstashToken
+    ? new Redis({ url: upstashUrl, token: upstashToken })
     : null;
 
 export const FREE_WINDOW_SEC = 300;       // 5 minutes
