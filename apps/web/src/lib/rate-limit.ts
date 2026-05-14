@@ -2,19 +2,24 @@
  * Rate-limit + ad-grant store.
  *
  * Two-layer storage:
- *  - Vercel KV (Redis) when KV_REST_API_URL is set — production, persistent
+ *  - Upstash Redis (REST) when UPSTASH_REDIS_REST_URL is set — production
  *  - In-memory Map when not — dev/local, ephemeral
  *
  * The in-memory impl is safe to rely on locally because there's no
- * cross-process consistency requirement during dev. In production the
- * KV impl shares state across all serverless instances.
+ * cross-process consistency requirement during dev. In production, Upstash
+ * is shared across all serverless instances.
  *
  * Free quota: sliding 5-minute window of generation timestamps.
  * Premium grants: separate counter, decremented on each premium use.
  * Grant rate-limit: max 5 ad-grants per hour per clientId.
  */
 
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
+
+const kv =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? Redis.fromEnv()
+    : null;
 
 export const FREE_WINDOW_SEC = 300;       // 5 minutes
 export const FREE_LIMIT = 5;              // generations per window
@@ -30,8 +35,6 @@ export interface QuotaState {
   grants_remaining_this_hour: number;
 }
 
-const useKv = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
-
 // ─── In-memory fallback (dev only) ──────────────────────────────────
 const memFreeWindow = new Map<string, number[]>();   // clientId → timestamps (sec)
 const memPremium = new Map<string, number>();        // clientId → premium uses left
@@ -43,7 +46,7 @@ function nowSec(): number {
 
 async function freeWindowCount(clientId: string): Promise<{ count: number; oldest: number | null }> {
   const cutoff = nowSec() - FREE_WINDOW_SEC;
-  if (useKv) {
+  if (kv) {
     const key = `mm:free:${clientId}`;
     // Drop expired then count
     await kv.zremrangebyscore(key, 0, cutoff);
@@ -59,7 +62,7 @@ async function freeWindowCount(clientId: string): Promise<{ count: number; oldes
 
 async function recordFreeGeneration(clientId: string): Promise<void> {
   const now = nowSec();
-  if (useKv) {
+  if (kv) {
     const key = `mm:free:${clientId}`;
     await kv.zadd(key, { score: now, member: `${now}-${Math.random()}` });
     await kv.expire(key, FREE_WINDOW_SEC + 60);
@@ -71,7 +74,7 @@ async function recordFreeGeneration(clientId: string): Promise<void> {
 }
 
 async function getPremiumUses(clientId: string): Promise<number> {
-  if (useKv) {
+  if (kv) {
     const v = await kv.get<number>(`mm:prem:${clientId}`);
     return v ?? 0;
   }
@@ -79,7 +82,7 @@ async function getPremiumUses(clientId: string): Promise<number> {
 }
 
 async function setPremiumUses(clientId: string, value: number): Promise<void> {
-  if (useKv) {
+  if (kv) {
     if (value <= 0) await kv.del(`mm:prem:${clientId}`);
     else await kv.set(`mm:prem:${clientId}`, value, { ex: 86400 });
     return;
@@ -90,7 +93,7 @@ async function setPremiumUses(clientId: string, value: number): Promise<void> {
 
 async function grantsThisHour(clientId: string): Promise<number> {
   const cutoff = nowSec() - GRANT_WINDOW_SEC;
-  if (useKv) {
+  if (kv) {
     const key = `mm:grants:${clientId}`;
     await kv.zremrangebyscore(key, 0, cutoff);
     return await kv.zcard(key);
@@ -102,7 +105,7 @@ async function grantsThisHour(clientId: string): Promise<number> {
 
 async function recordGrant(clientId: string): Promise<void> {
   const now = nowSec();
-  if (useKv) {
+  if (kv) {
     const key = `mm:grants:${clientId}`;
     await kv.zadd(key, { score: now, member: `${now}-${Math.random()}` });
     await kv.expire(key, GRANT_WINDOW_SEC + 60);
