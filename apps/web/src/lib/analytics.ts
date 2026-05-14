@@ -19,7 +19,9 @@ export type AnalyticsEvent =
   | { name: "ad_view_started" }
   | { name: "ad_view_completed" }
   | { name: "ad_view_skipped" }
-  | { name: "grant_cap_reached" };
+  | { name: "grant_cap_reached" }
+  | { name: "legal_gate_shown" }
+  | { name: "legal_gate_accepted" };
 
 let initialized = false;
 

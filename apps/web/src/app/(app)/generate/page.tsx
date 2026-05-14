@@ -91,6 +91,32 @@ export default function GeneratePage() {
     ? (quota?.premium_uses ?? 0) > 0
     : (quota?.free_remaining ?? 0) > 0;
 
+  // Dispatcher for the main CTA button. If the user is on a premium
+  // algorithm with no premium uses left, route the click to the ad flow
+  // instead of being a dead button.
+  async function onPrimaryCta() {
+    if (canGenerate) {
+      await onGenerate();
+    } else if (isPremium) {
+      await onWatchAd();
+    }
+  }
+
+  const ctaBusy = generate.isPending || adGrant.isPending;
+  const ctaLabel = adGrant.isPending
+    ? "Loading ad…"
+    : generate.isPending
+      ? "Generating…"
+      : canGenerate
+        ? "Generate"
+        : isPremium
+          ? "▶ Watch ad → +3 premium uses"
+          : "Free quota reached — wait or pick a premium algorithm";
+  // Disabled only when no useful click can fire (free quota empty AND
+  // not on a premium algo) or already busy. The premium-locked case is
+  // clickable — it triggers the ad.
+  const ctaDisabled = ctaBusy || (!canGenerate && !isPremium);
+
   return (
     <main className="space-y-10">
       <section>
@@ -183,17 +209,11 @@ export default function GeneratePage() {
         </p>
         <button
           type="button"
-          onClick={onGenerate}
-          disabled={generate.isPending || !canGenerate}
+          onClick={onPrimaryCta}
+          disabled={ctaDisabled}
           className="w-full bg-gold text-bg font-mono text-[12px] uppercase tracking-[0.25em] py-5 hover:bg-gold-bright disabled:opacity-50 transition-colors"
         >
-          {generate.isPending
-            ? "Generating…"
-            : !canGenerate && isPremium
-              ? "Watch ad to unlock"
-              : !canGenerate
-                ? "Free quota reached — wait or watch ad"
-                : "Generate"}
+          {ctaLabel}
         </button>
 
         {error ? (

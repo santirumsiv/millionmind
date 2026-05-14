@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { QueryProvider } from "@/components/QueryProvider";
 import { AnalyticsInit } from "@/components/AnalyticsInit";
+import { LegalGate } from "@/components/LegalGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <QueryProvider>
           <AnalyticsInit />
+          <LegalGate />
           {children}
         </QueryProvider>
       </body>
