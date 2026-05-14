@@ -70,3 +70,13 @@ supabase/.temp/
 
 # Claude / VSCode
 .claude/settings.local.json
+
+# Internal founder docs — kept locally, never in the public repo.
+# README.md is the only doc that ships publicly.
+LAUNCH_PLAN.md
+LAUNCH_PLAN.html
+LAUNCH_PLAN_EC2.md
+LAUNCH_PLAN_EC2.html
+BUSINESS_ANALYSIS.md
+NEXT_STEPS.md
+LOTTERY_EXPANSION.md
