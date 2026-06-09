@@ -7,6 +7,7 @@ import {
   type GameId,
 } from "@millionmind/shared";
 import { DisclaimerFooter } from "@/components/DisclaimerFooter";
+import { CountryToggle } from "@/components/CountryToggle";
 
 // Drawing counts shipped with the static JSON. Updated by the daily
 // GitHub Action; no need to edit by hand.
@@ -25,9 +26,12 @@ export default function LandingPage() {
         <div className="font-display text-[13px] tracking-[0.28em] uppercase text-gold font-medium">
           ◆ Million Mind
         </div>
-        <div className="text-right font-mono text-[11px] text-ink-faint tracking-wide leading-loose hidden md:block">
-          <span className="block">VERSION 0.2</span>
-          <span className="block">FREE · WEB</span>
+        <div className="flex items-center gap-6">
+          <div className="text-right font-mono text-[11px] text-ink-faint tracking-wide leading-loose hidden md:block">
+            <span className="block">VERSION 0.2</span>
+            <span className="block">FREE · WEB</span>
+          </div>
+          <CountryToggle />
         </div>
       </header>
 

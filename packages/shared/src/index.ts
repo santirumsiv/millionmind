@@ -2,6 +2,8 @@ export * from "./tiers";
 export * from "./algorithms";
 export * from "./algorithms-impl";
 export * from "./games";
+export * from "./ca-games";
+export * from "./ca-algorithms";
 export * from "./theme";
 export * from "./types";
 export * from "./schemas";
