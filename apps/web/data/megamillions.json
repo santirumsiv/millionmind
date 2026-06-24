@@ -1,6 +1,6 @@
 {
   "game": "megamillions",
-  "generated_at": "2026-06-23T14:19:23.600Z",
+  "generated_at": "2026-06-24T14:01:56.099Z",
   "rows": [
     {
       "draw_date": "2002-05-21",
@@ -18550,6 +18550,16 @@
       "n4": 26,
       "n5": 50,
       "powerball": 12,
+      "multiplier": 1
+    },
+    {
+      "draw_date": "2026-06-23",
+      "n1": 48,
+      "n2": 51,
+      "n3": 60,
+      "n4": 63,
+      "n5": 66,
+      "powerball": 20,
       "multiplier": 1
     }
   ]
