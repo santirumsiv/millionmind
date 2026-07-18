@@ -14,7 +14,8 @@
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rimraf node_modules",
     "web": "turbo run dev --filter=@millionmind/web",
-    "data:refresh": "node scripts/refresh-drawings.mjs"
+    "data:refresh": "node scripts/refresh-drawings.mjs",
+    "data:refresh:ca": "node scripts/refresh-ca-draws.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
