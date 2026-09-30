@@ -1,6 +1,6 @@
 {
   "game": "powerball",
-  "generated_at": "2026-09-29T17:08:55.053Z",
+  "generated_at": "2026-09-30T17:06:54.574Z",
   "rows": [
     {
       "draw_date": "2010-02-03",
@@ -3213,6 +3213,16 @@
       "multiplier": 3
     },
     {
+      "draw_date": "2014-06-28",
+      "n1": 8,
+      "n2": 12,
+      "n3": 34,
+      "n4": 43,
+      "n5": 56,
+      "powerball": 9,
+      "multiplier": 2
+    },
+    {
       "draw_date": "2014-07-05",
       "n1": 24,
       "n2": 34,
@@ -5931,6 +5941,16 @@
       "n5": 69,
       "powerball": 13,
       "multiplier": 3
+    },
+    {
+      "draw_date": "2017-06-10",
+      "n1": 20,
+      "n2": 26,
+      "n3": 32,
+      "n4": 38,
+      "n5": 58,
+      "powerball": 3,
+      "multiplier": 2
     },
     {
       "draw_date": "2017-06-14",
@@ -9973,6 +9993,16 @@
       "multiplier": 3
     },
     {
+      "draw_date": "2021-04-28",
+      "n1": 16,
+      "n2": 18,
+      "n3": 35,
+      "n4": 39,
+      "n5": 53,
+      "powerball": 21,
+      "multiplier": 3
+    },
+    {
       "draw_date": "2021-05-01",
       "n1": 35,
       "n2": 36,
@@ -11163,6 +11193,16 @@
       "multiplier": 2
     },
     {
+      "draw_date": "2022-03-12",
+      "n1": 19,
+      "n2": 20,
+      "n3": 37,
+      "n4": 39,
+      "n5": 61,
+      "powerball": 8,
+      "multiplier": 2
+    },
+    {
       "draw_date": "2022-03-14",
       "n1": 21,
       "n2": 28,
@@ -11271,6 +11311,16 @@
       "n5": 64,
       "powerball": 18,
       "multiplier": 3
+    },
+    {
+      "draw_date": "2022-04-09",
+      "n1": 6,
+      "n2": 16,
+      "n3": 31,
+      "n4": 62,
+      "n5": 66,
+      "powerball": 18,
+      "multiplier": 2
     },
     {
       "draw_date": "2022-04-11",
@@ -12171,6 +12221,16 @@
       "n5": 69,
       "powerball": 20,
       "multiplier": 3
+    },
+    {
+      "draw_date": "2022-11-07",
+      "n1": 10,
+      "n2": 33,
+      "n3": 41,
+      "n4": 47,
+      "n5": 56,
+      "powerball": 10,
+      "multiplier": 2
     },
     {
       "draw_date": "2022-11-09",
