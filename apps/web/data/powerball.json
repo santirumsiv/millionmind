@@ -1,6 +1,6 @@
 {
   "game": "powerball",
-  "generated_at": "2026-10-04T16:04:11.596Z",
+  "generated_at": "2026-10-06T17:30:46.893Z",
   "rows": [
     {
       "draw_date": "2010-02-03",
@@ -18340,6 +18340,16 @@
       "n4": 55,
       "n5": 59,
       "powerball": 14,
+      "multiplier": 2
+    },
+    {
+      "draw_date": "2026-10-05",
+      "n1": 16,
+      "n2": 23,
+      "n3": 32,
+      "n4": 36,
+      "n5": 54,
+      "powerball": 9,
       "multiplier": 2
     }
   ]
