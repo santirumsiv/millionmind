@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CountryToggle } from "@/components/CountryToggle";
 
 const NAV: Array<{ href: "/home" | "/generate" | "/analytics" | "/history"; label: string }> = [
   { href: "/home", label: "Home" },
@@ -14,17 +15,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Link href="/home" className="font-mono text-[12px] tracking-[0.28em] uppercase text-gold font-medium">
           ◆ Million Mind
         </Link>
-        <nav className="hidden md:flex gap-6">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft hover:text-gold"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex items-center gap-6">
+          <nav className="hidden md:flex gap-6">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft hover:text-gold"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <CountryToggle />
+        </div>
       </header>
 
       {children}

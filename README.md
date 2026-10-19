@@ -40,6 +40,24 @@ npm run build                               # full production build
 npm run data:refresh                        # regenerate drawings JSON locally
 ```
 
+### Canada (CA) section
+
+A 🇺🇸 US / 🇨🇦 CA toggle (top-right of the header) switches to `/ca`, which adds
+**Lotto Max, Lotto 6/49, and Daily Grand** with the same statistics + generation
+experience. Like the US games, the CA section computes everything from
+in-codebase draw history (`apps/web/data/ca-*.json`) — **no backend required**:
+
+```bash
+npm run web                                 # then open http://localhost:3000/ca
+npm run data:refresh:ca                     # pull the latest CA draws from WCLC
+```
+
+The deep history is seeded from the OLG "Since Inception" PDFs
+(`scripts/parse-ca-draws.py`) and kept current by `scripts/refresh-ca-draws.mjs`
+(run daily by the GitHub Action). A legacy Python-backend proxy
+(`apps/web/src/lib/ca-backends.ts`) is kept but unwired. See
+[docs/CANADA.md](docs/CANADA.md) for the full architecture.
+
 ## Deployment
 
 The app is built to run on Vercel (Next.js + Vercel KV for rate-limit state).

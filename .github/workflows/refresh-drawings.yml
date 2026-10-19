@@ -1,8 +1,9 @@
 name: refresh-drawings
 
 # Pulls the latest Powerball + Mega Millions drawings from NY State Open
-# Data, regenerates apps/web/data/*.json, commits if anything changed,
-# and pushes — Vercel auto-redeploys on push.
+# Data AND the latest Canadian draws (Lotto Max / 6-49 / Daily Grand) from
+# WCLC, regenerates apps/web/data/*.json, commits if anything changed, and
+# pushes — Vercel auto-redeploys on push.
 
 on:
   schedule:
@@ -24,8 +25,11 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Refresh JSON
+      - name: Refresh US JSON (Powerball + Mega Millions)
         run: node scripts/refresh-drawings.mjs
+
+      - name: Refresh CA JSON (Lotto Max / 6-49 / Daily Grand)
+        run: node scripts/refresh-ca-draws.mjs
 
       - name: Commit if changed
         run: |
